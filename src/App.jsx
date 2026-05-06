@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 // 분리한 Widgets.jsx에서 필요한 컴포넌트들을 임포트합니다.
 import { XIcon, SettingsIcon, WeatherWidget, NewsWidget, DefaultWidget } from './Widgets';
+import StockWidget from './StockWidget';
 
 // --- 입력 모달 컴포넌트 ---
 const InputModal = ({ type, onClose, onConfirm, initialValue }) => {
@@ -41,6 +42,42 @@ export default function App() {
   const [activeWidgets, setActiveWidgets] = useState([]); 
   const [widgetData, setWidgetData] = useState({});       
   const [modalOpen, setModalOpen] = useState(null);
+  const [stockPrices, setStockPrices] = useState({}); // 실제 가격 저장용
+const [lastUpdated, setLastUpdated] = useState('');
+
+useEffect(() => {
+  const fetchPrices = async () => {
+    // 1. DB(Supabase)에서 가져온 종목 리스트가 있는지 확인
+    const tickers = widgetData.Stock; 
+    if (!tickers || tickers.length === 0) return;
+
+    const results = {};
+    for (const ticker of tickers) {
+      try {
+        // 2. M3 맥북에서 돌아가는 FastAPI 서버에 요청
+        const response = await fetch(`http://localhost:8000/api/stock/${ticker}`);
+        const data = await response.json();
+        
+        if (!data.error) {
+          results[ticker] = data; // { ticker: 'NVDA', price: 900.12, change: 2.5 } 형식
+        }
+      } catch (err) {
+        console.error(`${ticker} 연결 실패:`, err);
+      }
+    }
+
+    // 3. 상태 업데이트 -> 리렌더링 유발
+    setStockPrices(results);
+    setLastUpdated(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
+  };
+
+  // 처음 마운트될 때 실행
+  fetchPrices();
+
+  // 1분(60000ms)마다 반복 호출
+  const timer = setInterval(fetchPrices, 60000);
+  return () => clearInterval(timer);
+}, [widgetData.Stock]);
 
   useEffect(() => {
     const fetchProfile = async (user) => {
@@ -196,45 +233,50 @@ export default function App() {
       </nav>
 
       <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full h-full">
-        {[0, 1, 2, 3].map((index) => {
-          const widgetName = activeWidgets[index];
-          return (
-            <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden">
-              {widgetName ? (
-                <>
-                  <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors">
-                      <SettingsIcon />
-                    </button>
-                    <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors">
-                      <XIcon />
-                    </button>
-                  </div>
-                  
-                  {/* 위젯에 개별 키워드 삭제 함수 전달 */}
-                  {widgetName === 'Weather' && (
-                    <WeatherWidget data={widgetData.Weather} onRemoveKeyword={deleteIndividualKeyword} />
-                  )}
-                  {widgetName === 'News' && (
-                    <NewsWidget data={widgetData.News} onRemoveKeyword={deleteIndividualKeyword} />
-                  )}
-                  {widgetName !== 'Weather' && widgetName !== 'News' && (
-                    <DefaultWidget 
-                      type={widgetName} 
-                      data={widgetData[widgetName]} 
-                      onRemoveKeyword={deleteIndividualKeyword} 
-                    />
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
-                  <div className="text-8xl font-black">0{index + 1}</div>
-                </div>
-              )}
+  {[0, 1, 2, 3].map((index) => {
+    const widgetName = activeWidgets[index];
+    return (
+      <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden">
+        {widgetName ? (
+          <>
+            <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors">
+                <SettingsIcon />
+              </button>
+              <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors">
+                <XIcon />
+              </button>
             </div>
-          );
-        })}
-      </main>
+            
+            {widgetName === 'Weather' && (
+              <WeatherWidget data={widgetData.Weather} onRemoveKeyword={deleteIndividualKeyword} />
+            )}
+            {widgetName === 'News' && (
+              <NewsWidget data={widgetData.News} onRemoveKeyword={deleteIndividualKeyword} />
+            )}
+            {/* 💡 주식 위젯 전용 연결: StockWidget.jsx를 따로 띄웁니다 */}
+            {widgetName === 'Stock' && (
+              <StockWidget data={widgetData.Stock} onRemoveKeyword={deleteIndividualKeyword} stockPrices={stockPrices} 
+    lastUpdated={lastUpdated}/>
+            )}
+            {/* Stock, Weather, News가 아닌 나머지(Todo 등)만 DefaultWidget 사용 */}
+            {widgetName !== 'Weather' && widgetName !== 'News' && widgetName !== 'Stock' && (
+              <DefaultWidget 
+                type={widgetName} 
+                data={widgetData[widgetName]} 
+                onRemoveKeyword={deleteIndividualKeyword} 
+              />
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
+            <div className="text-8xl font-black">0{index + 1}</div>
+          </div>
+        )}
+      </div>
+    );
+  })}
+</main>
     </div>
   );
 }
