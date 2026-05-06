@@ -1,127 +1,234 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
+// 분리한 Widgets.jsx에서 필요한 컴포넌트들을 임포트합니다.
+import { XIcon, SettingsIcon, WeatherWidget, NewsWidget, DefaultWidget } from './Widgets';
 
-// --- 고정 크기 아이콘 (Tailwind 미작동 대비 인라인 스타일 포함) ---
-const XIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ width: '16px', height: '16px' }}>
-    <line x1="18" y1="6" x2="6" y2="18"></line>
-    <line x1="6" y1="6" x2="18" y2="18"></line>
-  </svg>
-);
-
-const SunIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '48px', height: '48px' }} className="text-amber-400">
-    <circle cx="12" cy="12" r="5"></circle>
-    <line x1="12" y1="1" x2="12" y2="3"></line>
-    <line x1="12" y1="21" x2="12" y2="23"></line>
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-    <line x1="1" y1="12" x2="3" y2="12"></line>
-    <line x1="21" y1="12" x2="23" y2="12"></line>
-  </svg>
-);
-
-// --- 각 사분면 위젯 컴포넌트 ---
-const NewsWidget = () => (
-  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-white">
-    <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest mb-4">Latest News</span>
-    <h4 className="text-xl font-bold text-slate-800 leading-tight">Gemini 3 모델 출시 소식</h4>
-    <p className="text-sm text-slate-400 mt-2">강원대 캡스톤 디자인 경진대회 일정 안내</p>
-  </div>
-);
-
-const WeatherWidget = () => (
-  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-white">
-    <SunIcon />
-    <h2 className="text-5xl font-black text-slate-800 mt-3">18°C</h2>
-    <p className="text-lg text-slate-500 font-medium">강원도 춘천시 효자동</p>
-  </div>
-);
-
-const TodoWidget = () => (
-  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-white">
-    <span className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest mb-4">To-Do List</span>
-    <div className="space-y-2 text-lg font-semibold text-slate-700">
-      <p>• 미라클 모닝 대시보드 개발</p>
-      <p>• 정보처리기사 문제 풀이</p>
-    </div>
-  </div>
-);
-
-const StockWidget = () => (
-  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-white">
-    <span className="text-[11px] font-bold text-rose-500 uppercase tracking-widest mb-4">Market</span>
-    <div className="flex flex-col items-center">
-      <span className="text-3xl font-black text-slate-800 uppercase">NVIDIA</span>
-      <span className="text-xl text-rose-500 font-bold mt-1">+2.45%</span>
-    </div>
-  </div>
-);
-
-// --- 메인 대시보드 컨테이너 ---
-export default function App() {
-  // 초기 위젯 상태 (사분면 순서)
-  const [activeWidgets, setActiveWidgets] = useState(['News', 'Weather', 'Todo', 'Stock']);
+// --- 입력 모달 컴포넌트 ---
+const InputModal = ({ type, onClose, onConfirm, initialValue }) => {
+  const [value, setValue] = useState(''); // 추가할 새 키워드만 입력받으므로 빈 값으로 시작
   
-  const allWidgets = {
-    News: <NewsWidget />,
-    Weather: <WeatherWidget />,
-    Todo: <TodoWidget />,
-    Stock: <StockWidget />,
-  };
-
-  const removeWidget = (name) => setActiveWidgets(activeWidgets.filter(w => w !== name));
-  
-  const addWidget = (name) => {
-    if (activeWidgets.length < 4 && !activeWidgets.includes(name)) {
-      setActiveWidgets([...activeWidgets, name]);
-    }
+  const placeholderText = {
+    Weather: "지역 추가 (예: 춘천시 후평동)",
+    News: "관심 뉴스 키워드 추가",
+    Stock: "관심 종목 추가",
+    Todo: "목표 추가"
   };
 
   return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white p-8 rounded-3xl shadow-2xl w-[400px]">
+        <h3 className="text-xl font-black text-slate-800 mb-2">{type} 추가</h3>
+        <p className="text-slate-500 text-sm mb-6">위젯에 새로운 키워드를 추가하세요.</p>
+        <input 
+          autoFocus
+          className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none mb-6 font-bold"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && onConfirm(value)}
+          placeholder={placeholderText[type]}
+        />
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-xl font-bold">취소</button>
+          <button onClick={() => onConfirm(value)} className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-bold">추가</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [activeWidgets, setActiveWidgets] = useState([]); 
+  const [widgetData, setWidgetData] = useState({});       
+  const [modalOpen, setModalOpen] = useState(null);
+
+  useEffect(() => {
+    const fetchProfile = async (user) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('interests')
+        .eq('id', user.id);
+
+      if (error) {
+        console.error("데이터 로딩 에러:", error.message);
+        return;
+      }
+
+      if (data && data.length > 0 && data[0].interests) {
+        setWidgetData(data[0].interests);
+        // DB에 데이터가 있고, 배열 안에 키워드가 하나라도 있는 항목들만 화면에 띄워줍니다.
+        const activeKeys = Object.keys(data[0].interests).filter(key => 
+          Array.isArray(data[0].interests[key]) && data[0].interests[key].length > 0
+        );
+        setActiveWidgets(activeKeys);
+      }
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchProfile(session.user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) fetchProfile(session.user);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleAddClick = (name) => {
+    if (activeWidgets.length < 4 && !activeWidgets.includes(name)) {
+      // 이미 데이터(배열)가 있으면 바로 보여주고, 없으면 모달을 띄워 첫 키워드를 입력받습니다.
+      if (Array.isArray(widgetData[name]) && widgetData[name].length > 0) {
+        setActiveWidgets([...activeWidgets, name]);
+      } else {
+        setModalOpen(name);
+      }
+    }
+  };
+
+  // 💡 다중 키워드 추가 저장 로직
+  const confirmWidget = async (inputValue) => {
+    if (!inputValue.trim()) return;
+    const type = modalOpen;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // 기존 데이터가 배열이면 유지, 아니면 빈 배열로 시작
+    const currentKeywords = Array.isArray(widgetData[type]) ? widgetData[type] : [];
+    
+    // 중복 방지하며 새 키워드 추가
+    const updatedKeywords = [...new Set([...currentKeywords, inputValue.trim()])];
+    const updatedInterests = { ...widgetData, [type]: updatedKeywords };
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, interests: updatedInterests });
+
+    if (!error) {
+      setWidgetData(updatedInterests);
+      if (!activeWidgets.includes(type)) setActiveWidgets([...activeWidgets, type]);
+      setModalOpen(null);
+    }
+  };
+
+  // 💡 개별 키워드 삭제 함수
+  const deleteIndividualKeyword = async (type, keywordToDelete) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // 해당 키워드만 제외
+    const updatedKeywords = widgetData[type].filter(k => k !== keywordToDelete);
+    const updatedInterests = { ...widgetData, [type]: updatedKeywords };
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ interests: updatedInterests })
+      .eq('id', user.id);
+
+    if (!error) {
+      setWidgetData(updatedInterests);
+      // 만약 키워드가 하나도 남지 않으면 화면에서 위젯을 내립니다.
+      if (updatedKeywords.length === 0) {
+        setActiveWidgets(activeWidgets.filter(w => w !== type));
+      }
+    } else {
+      alert("삭제 실패: " + error.message);
+    }
+  };
+
+  const removeWidget = (name) => {
+    setActiveWidgets(activeWidgets.filter(w => w !== name));
+  };
+
+  if (!session) return (
+    <div className="h-screen flex items-center justify-center bg-slate-50">
+      <button 
+        onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
+        className="px-8 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm font-bold flex items-center gap-3 hover:bg-slate-50 transition-all"
+      >
+        <img className="w-6 h-6" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" />
+        구글 계정으로 로그인하여 시작하기
+      </button>
+    </div>
+  );
+
+  return (
     <div className="w-screen h-screen flex flex-col bg-slate-200 overflow-hidden font-sans">
-      {/* 상단 네비게이션: 위젯 추가/삭제 컨트롤러 */}
-      <nav className="h-24 bg-white border-b border-slate-200 flex flex-col items-center justify-center shrink-0 z-50 px-10">
-        <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase">Proto:Miracle</h1>
+      {modalOpen && (
+        <InputModal 
+          type={modalOpen} 
+          onClose={() => setModalOpen(null)} 
+          onConfirm={confirmWidget}
+        />
+      )}
+
+      <nav className="h-24 bg-white border-b border-slate-200 flex flex-col items-center justify-center shrink-0 z-50 px-10 relative">
+        <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">Proto:Miracle</h1>
+        
+        <div className="absolute right-10 top-6 flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            {session.user.user_metadata.avatar_url && (
+              <img src={session.user.user_metadata.avatar_url} alt="p" className="w-6 h-6 rounded-full border border-slate-200" />
+            )}
+            <span className="text-[11px] font-bold text-slate-600">
+              {session.user.user_metadata.full_name || session.user.email}
+            </span>
+          </div>
+          <button onClick={() => supabase.auth.signOut()} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 uppercase transition-colors">Logout</button>
+        </div>
+
         <div className="flex gap-2 mt-3">
-          {Object.keys(allWidgets).map(name => (
+          {['News', 'Weather', 'Todo', 'Stock'].map(name => (
             <button 
               key={name}
-              onClick={() => addWidget(name)}
+              onClick={() => handleAddClick(name)}
               disabled={activeWidgets.includes(name)}
               className={`text-[10px] px-3 py-1.5 rounded-full font-bold border transition-all ${
                 activeWidgets.includes(name) 
-                ? 'bg-slate-100 text-slate-300 border-slate-100' 
+                ? 'bg-indigo-600 text-white border-indigo-600' 
                 : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-500 hover:text-indigo-500'
               }`}
             >
-              {name} {activeWidgets.includes(name) ? '추가됨' : '+'}
+              {name} {activeWidgets.includes(name) ? 'ON' : '+'}
             </button>
           ))}
         </div>
       </nav>
 
-      {/* 사분면 그리드 영역: flex-1을 통해 상단바 제외 남은 영역 100% 활용 */}
-      <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full h-full overflow-hidden">
+      <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full h-full">
         {[0, 1, 2, 3].map((index) => {
           const widgetName = activeWidgets[index];
           return (
             <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden">
               {widgetName ? (
                 <>
-                  {/* 삭제 버튼: 마우스 호버 시 우측 상단 노출 */}
-                  <button 
-                    onClick={() => removeWidget(widgetName)}
-                    className="absolute top-6 right-6 z-40 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white shadow-sm"
-                  >
-                    <XIcon />
-                  </button>
-                  {allWidgets[widgetName]}
+                  <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors">
+                      <SettingsIcon />
+                    </button>
+                    <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors">
+                      <XIcon />
+                    </button>
+                  </div>
+                  
+                  {/* 위젯에 개별 키워드 삭제 함수 전달 */}
+                  {widgetName === 'Weather' && (
+                    <WeatherWidget data={widgetData.Weather} onRemoveKeyword={deleteIndividualKeyword} />
+                  )}
+                  {widgetName === 'News' && (
+                    <NewsWidget data={widgetData.News} onRemoveKeyword={deleteIndividualKeyword} />
+                  )}
+                  {widgetName !== 'Weather' && widgetName !== 'News' && (
+                    <DefaultWidget 
+                      type={widgetName} 
+                      data={widgetData[widgetName]} 
+                      onRemoveKeyword={deleteIndividualKeyword} 
+                    />
+                  )}
                 </>
               ) : (
-                /* 빈 슬롯: 위젯을 추가할 수 있는 유도 디자인 */
-                <div className="flex flex-col items-center text-slate-200 select-none">
-                  <div className="text-7xl font-thin">+</div>
-                  <p className="text-xs font-bold mt-2 tracking-widest">ADD WIDGET</p>
+                <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
+                  <div className="text-8xl font-black">0{index + 1}</div>
                 </div>
               )}
             </div>
