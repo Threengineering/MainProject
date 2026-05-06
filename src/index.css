@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* 기존 변수들은 그대로 두셔도 되지만, 
+     font: 18px/145% 등 전체 레이아웃에 영향을 주는 속성은 제거하는 것이 좋습니다. */
+  --bg: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16171d;
+  }
+}
+
+/* 핵심 수정: #root의 너비 제한과 중앙 정렬 해제 */
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* 스크롤 방지 */
+}
+
+#root {
+  width: 100vw;      /* 화면 전체 너비 */
+  height: 100vh;     /* 화면 전체 높이 */
+  margin: 0;
+  padding: 0;
+  text-align: left;  /* 기본 정렬을 왼쪽으로 복구 */
+  display: block;    /* flex 제거 */
+}
+
+/* h1, p 등의 기본 마진이 레이아웃을 망치지 않게 초기화 */
+h1, h2, p {
+  margin: 0;
+}
