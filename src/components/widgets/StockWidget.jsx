@@ -1,5 +1,6 @@
 import React from 'react';
-import { XIcon } from './Widgets';
+import { XIcon } from './Icons';
+import { KeywordTag } from './Icons';
 
 export default function StockWidget({ data, onRemoveKeyword, stockPrices = {}, lastUpdated }) {
   const stockList = Array.isArray(data) ? data : [];

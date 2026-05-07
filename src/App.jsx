@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-// 분리한 Widgets.jsx에서 필요한 컴포넌트들을 임포트합니다.
-import { XIcon, SettingsIcon, WeatherWidget, NewsWidget, DefaultWidget } from './Widgets';
-import StockWidget from './StockWidget';
+import WeatherWidget from './components/widgets/WeatherWidget';
+import NewsWidget from './components/widgets/NewsWidget';
+import TodoWidget from './components/widgets/TodoWidget';
+import StockWidget from './components/widgets/StockWidget';
+import { SettingsIcon, XIcon } from './components/widgets/Icons';
 
 // --- 입력 모달 컴포넌트 ---
 const InputModal = ({ type, onClose, onConfirm, initialValue }) => {
@@ -249,24 +251,22 @@ useEffect(() => {
             </div>
             
             {widgetName === 'Weather' && (
-              <WeatherWidget data={widgetData.Weather} onRemoveKeyword={deleteIndividualKeyword} />
-            )}
-            {widgetName === 'News' && (
-              <NewsWidget data={widgetData.News} onRemoveKeyword={deleteIndividualKeyword} />
-            )}
-            {/* 💡 주식 위젯 전용 연결: StockWidget.jsx를 따로 띄웁니다 */}
-            {widgetName === 'Stock' && (
-              <StockWidget data={widgetData.Stock} onRemoveKeyword={deleteIndividualKeyword} stockPrices={stockPrices} 
-    lastUpdated={lastUpdated}/>
-            )}
-            {/* Stock, Weather, News가 아닌 나머지(Todo 등)만 DefaultWidget 사용 */}
-            {widgetName !== 'Weather' && widgetName !== 'News' && widgetName !== 'Stock' && (
-              <DefaultWidget 
-                type={widgetName} 
-                data={widgetData[widgetName]} 
-                onRemoveKeyword={deleteIndividualKeyword} 
-              />
-            )}
+                <WeatherWidget data={widgetData.Weather} onRemoveKeyword={deleteIndividualKeyword} />
+              )}
+              {widgetName === 'News' && (
+                <NewsWidget data={widgetData.News} onRemoveKeyword={deleteIndividualKeyword} />
+              )}
+              {widgetName === 'Stock' && (
+                <StockWidget 
+                  data={widgetData.Stock} 
+                  stockPrices={stockPrices} 
+                  lastUpdated={lastUpdated}
+                  onRemoveKeyword={deleteIndividualKeyword} 
+                />
+              )}
+              {widgetName === 'Todo' && (
+                <TodoWidget data={widgetData.Todo} onRemoveKeyword={deleteIndividualKeyword} />
+              )}
           </>
         ) : (
           <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
