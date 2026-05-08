@@ -46,3 +46,42 @@
 ## 5. Github Address
 - URL: https://github.com/Threengineering/MainProject
 - Branch: Main
+
+## 6. Installation (라이브러리 설치 방법)
+프로그램 구동에 필요한 라이브러리 패키지들을 설치하려면 아래 명령어를 입력하세요.
+
+### Backend (Python)
+가상환경을 활성화한 후, 필요한 파이썬 라이브러리를 한 번에 설치합니다.
+```bash
+source .venv/bin/activate  # (Mac/Linux 기준)
+pip install -r requirements.txt
+```
+
+### Frontend (Node.js)
+```bash
+npm install
+```
+
+## 7. How to Run (프로그램 실행 방법)
+백엔드와 프론트엔드를 한 번에 실행하거나, 각각 개별로 실행할 수 있습니다.
+
+### 방법 1. 한 번에 실행하기 (권장)
+가상환경이 활성화된 상태에서 아래 명령어를 입력하면 프론트엔드와 백엔드가 동시에 실행됩니다.
+```bash
+source .venv/bin/activate
+npm start
+```
+
+### 방법 2. 개별 실행하기
+서버 로그를 분리해서 보려면 터미널을 두 개 열어 각각 실행하세요.
+
+**터미널 1: 백엔드 실행**
+```bash
+source .venv/bin/activate
+uvicorn main:app --reload
+```
+
+**터미널 2: 프론트엔드 실행**
+```bash
+npm run dev
+```
