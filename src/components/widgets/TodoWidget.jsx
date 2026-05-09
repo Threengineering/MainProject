@@ -40,12 +40,11 @@ const ClockIcon = () => (
 );
 
 // ─── 남은 시간 계산 ───────────────────────────────────────
-function getTimeLeft(deadline) {
+function getTimeLeft(deadline, now) {
   if (!deadline) return null;
-  const now = new Date();
   const end = new Date(deadline);
   const diff = end - now;
-  if (diff <= 0) return { expired: true, label: '기한 초과' };
+  if (diff <= 0) return { expired: true, label: '기한 초과', urgency: -1 };
 
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -56,19 +55,24 @@ function getTimeLeft(deadline) {
   return { expired: false, label: `${minutes}분`, urgency: minutes / (24 * 60) };
 }
 
-// 남은 시간 뱃지 색상
+// 긴급도에 따른 색상 (배경 + 텍스트 모두 진해짐)
 function getUrgencyColor(timeLeft) {
   if (!timeLeft) return '';
-  if (timeLeft.expired) return 'text-rose-500 bg-rose-50';
-  if (timeLeft.urgency < 1 / 24) return 'text-rose-500 bg-rose-50';   // 1시간 미만
-  if (timeLeft.urgency < 1) return 'text-orange-500 bg-orange-50';     // 1일 미만
-  if (timeLeft.urgency < 3) return 'text-amber-500 bg-amber-50';       // 3일 미만
-  return 'text-slate-400 bg-slate-100';
+  if (timeLeft.expired)            return 'text-white bg-rose-500';          // 초과: 진빨강
+  if (timeLeft.urgency < 1 / 24)   return 'text-white bg-rose-400';          // 1시간 미만: 빨강
+  if (timeLeft.urgency < 1)        return 'text-white bg-orange-400';        // 1일 미만: 주황
+  if (timeLeft.urgency < 3)        return 'text-white bg-amber-400';         // 3일 미만: 노랑
+  if (timeLeft.urgency < 7)        return 'text-amber-700 bg-amber-100';     // 7일 미만: 연노랑
+  return 'text-slate-500 bg-slate-100';                                       // 7일 이상: 회색
 }
 
-// ─── 정렬: 기한 있는 것 먼저(임박순), 없는 것 뒤 ─────────
+// ─── 정렬: 기한 임박 순, 없는 것 뒤 ─────────────────────
 function sortTodos(todos) {
   return [...todos].sort((a, b) => {
+    // 완료 항목은 무조건 맨 아래
+    if (a.done && !b.done) return 1;
+    if (!a.done && b.done) return -1;
+    // 둘 다 미완료거나 둘 다 완료면 기한 임박 순
     if (a.deadline && b.deadline) return new Date(a.deadline) - new Date(b.deadline);
     if (a.deadline) return -1;
     if (b.deadline) return 1;
@@ -89,19 +93,18 @@ async function saveTodosToSupabase(updatedTodos) {
   return true;
 }
 
-// ─── 추가 모달 ────────────────────────────────────────────
+// ─── 추가 모달 (기일 필수) ───────────────────────────────
 function AddTodoModal({ onClose, onConfirm }) {
   const [text, setText] = useState('');
-  const [hasDeadline, setHasDeadline] = useState(false);
   const [deadline, setDeadline] = useState('');
 
-  const handleConfirm = () => {
-    if (!text.trim()) return;
-    onConfirm({ text: text.trim(), deadline: hasDeadline && deadline ? deadline : null });
-  };
-
-  // datetime-local 최솟값: 지금
   const minDateTime = new Date().toISOString().slice(0, 16);
+  const canConfirm = text.trim() && deadline;
+
+  const handleConfirm = () => {
+    if (!canConfirm) return;
+    onConfirm({ text: text.trim(), deadline });
+  };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 backdrop-blur-sm"
@@ -118,26 +121,11 @@ function AddTodoModal({ onClose, onConfirm }) {
           placeholder="할 일 입력..."
           value={text}
           onChange={e => setText(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && !hasDeadline && handleConfirm()}
         />
 
-        {/* 기일 설정 토글 */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setHasDeadline(v => !v)}
-            className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${
-              hasDeadline ? 'bg-purple-500' : 'bg-slate-200'
-            }`}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
-              hasDeadline ? 'left-5' : 'left-0.5'
-            }`} />
-          </button>
-          <span className="text-xs font-bold text-slate-500">기일 설정</span>
-        </div>
-
-        {/* 날짜/시간 선택 */}
-        {hasDeadline && (
+        {/* 기일 (항상 표시, 필수) */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold text-slate-500">기일 <span className="text-rose-400">*</span></label>
           <input
             type="datetime-local"
             min={minDateTime}
@@ -146,7 +134,7 @@ function AddTodoModal({ onClose, onConfirm }) {
             value={deadline}
             onChange={e => setDeadline(e.target.value)}
           />
-        )}
+        </div>
 
         {/* 버튼 */}
         <div className="flex gap-2 mt-1">
@@ -155,9 +143,9 @@ function AddTodoModal({ onClose, onConfirm }) {
             취소
           </button>
           <button onClick={handleConfirm}
-            disabled={!text.trim() || (hasDeadline && !deadline)}
+            disabled={!canConfirm}
             className="flex-1 py-3 bg-purple-600 text-white rounded-xl text-sm font-bold
-                       hover:bg-purple-700 disabled:opacity-30 transition-colors">
+                       hover:bg-purple-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
             추가
           </button>
         </div>
@@ -167,7 +155,7 @@ function AddTodoModal({ onClose, onConfirm }) {
 }
 
 // ─── 메인 컴포넌트 ────────────────────────────────────────
-export default function TodoWidget({ data, onDataChange }) {
+export default function TodoWidget({ data, onDataChange, initialShowModal, onModalShown }) {
   const normalize = (raw) => {
     if (!Array.isArray(raw)) return [];
     return raw.map((item, i) =>
@@ -183,20 +171,26 @@ export default function TodoWidget({ data, onDataChange }) {
   const [editingId, setEditingId] = useState(null);
   const [editingText, setEditingText] = useState('');
   const [editingDeadline, setEditingDeadline] = useState('');
-  const [editingHasDeadline, setEditingHasDeadline] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [, forceUpdate] = useState(0); // 매 분 리렌더링용
+  // 첫 추가 시 모달 자동 오픈 지원
+  const [showAddModal, setShowAddModal] = useState(!!initialShowModal);
+  const [now, setNow] = useState(() => Date.now());
+
+  // 모달 오픈 알림 (App.jsx에서 confirmWidget 흐름 우회)
+  useEffect(() => {
+    if (initialShowModal && onModalShown) onModalShown();
+  }, []);
 
   // 1분마다 남은 시간 갱신
   useEffect(() => {
-    const timer = setInterval(() => forceUpdate(n => n + 1), 60000);
+    const timer = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  const visibleTodos = sortTodos(todos.filter(t => !t.done || completing.has(t.id)));
-  const expiredTodos = todos.filter(t => t.deadline && new Date(t.deadline) < new Date() && !t.done);
-  const doneCount = todos.filter(t => t.done && !completing.has(t.id)).length;
+  const visibleTodos = sortTodos(todos);
+  const expiredTodos = todos.filter(t => t.deadline && new Date(t.deadline) < new Date(now) && !t.done);
+  const doneCount = todos.filter(t => t.done).length;
   const total = todos.length;
+  const minDateTime = new Date().toISOString().slice(0, 16);
 
   // ── 추가 ──
   const addTodo = async ({ text, deadline }) => {
@@ -210,23 +204,13 @@ export default function TodoWidget({ data, onDataChange }) {
     setShowAddModal(false);
   };
 
-  // ── 완료 (1초 후 삭제) ──
-  const toggleDone = (id) => {
+  // ── 완료 토글 ──
+  const toggleDone = async (id) => {
     const todo = todos.find(t => t.id === id);
-    // 기한 초과된 항목은 완료 처리 안 됨 (취소선만 표시)
-    if (todo?.deadline && new Date(todo.deadline) < new Date()) return;
-    if (completing.has(id)) return;
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, done: true } : t));
-    setCompleting(prev => new Set(prev).add(id));
-    setTimeout(async () => {
-      const currentTodos = await new Promise(resolve => {
-        setTodos(prev => { resolve(prev); return prev; });
-      });
-      const updated = currentTodos.filter(t => t.id !== id);
-      const ok = await saveTodosToSupabase(updated);
-      if (ok) { setTodos(updated); onDataChange?.('Todo', updated); }
-      setCompleting(prev => { const next = new Set(prev); next.delete(id); return next; });
-    }, 100);
+    if (todo?.deadline && new Date(todo.deadline) < new Date(now)) return;
+    const updated = todos.map(t => t.id === id ? { ...t, done: !t.done } : t);
+    const ok = await saveTodosToSupabase(updated);
+    if (ok) { setTodos(updated); onDataChange?.('Todo', updated); }
   };
 
   // ── 삭제 ──
@@ -240,7 +224,6 @@ export default function TodoWidget({ data, onDataChange }) {
   const startEdit = (todo) => {
     setEditingId(todo.id);
     setEditingText(todo.text);
-    setEditingHasDeadline(!!todo.deadline);
     setEditingDeadline(todo.deadline
       ? new Date(todo.deadline).toISOString().slice(0, 16)
       : '');
@@ -249,17 +232,14 @@ export default function TodoWidget({ data, onDataChange }) {
   // ── 수정 확정 ──
   const confirmEdit = async (id) => {
     const text = editingText.trim();
-    if (!text) return;
-    const deadline = editingHasDeadline && editingDeadline ? editingDeadline : null;
-    const updated = todos.map(t => t.id === id ? { ...t, text, deadline } : t);
+    if (!text || !editingDeadline) return;
+    const updated = todos.map(t => t.id === id ? { ...t, text, deadline: editingDeadline } : t);
     const ok = await saveTodosToSupabase(updated);
     if (ok) { setTodos(updated); onDataChange?.('Todo', updated); }
     setEditingId(null);
   };
 
   const cancelEdit = () => setEditingId(null);
-
-  const minDateTime = new Date().toISOString().slice(0, 16);
 
   return (
     <>
@@ -285,9 +265,7 @@ export default function TodoWidget({ data, onDataChange }) {
                   : total > 0 ? '남은 일정이 없습니다' : '할 일을 추가하세요'}
               </h2>
               {expiredTodos.length > 0 && (
-                <p className="text-[10px] font-bold text-rose-400 mt-1">
-                  ⚠ 기한 초과 {expiredTodos.length}개
-                </p>
+                <p className="text-[10px] font-bold text-rose-400 mt-1">⚠ 기한 초과 {expiredTodos.length}개</p>
               )}
             </div>
             {total > 0 && (
@@ -306,41 +284,38 @@ export default function TodoWidget({ data, onDataChange }) {
         <div className="flex-1 overflow-y-auto px-8 py-4 space-y-2 min-h-0">
           {visibleTodos.length === 0 && (
             <div className="h-full flex items-center justify-center">
-              <p className="text-slate-200 font-black text-sm uppercase tracking-widest select-none">
-                {total > 0 ? 'All done ✓' : 'Empty'}
-              </p>
+              <p className="text-slate-200 font-black text-sm uppercase tracking-widest select-none">Empty</p>
             </div>
           )}
           {visibleTodos.map((todo) => {
-            const isCompleting = completing.has(todo.id);
             const isEditing = editingId === todo.id;
-            const timeLeft = getTimeLeft(todo.deadline);
+            const timeLeft = getTimeLeft(todo.deadline, now);
             const isExpired = timeLeft?.expired;
             const urgencyColor = getUrgencyColor(timeLeft);
 
             return (
               <div key={todo.id}
-                className={`group flex flex-col gap-1.5 p-3 rounded-xl transition-all duration-300 ${
-                  isCompleting ? 'bg-purple-50 opacity-50 scale-95'
-                  : isEditing ? 'bg-indigo-50 ring-2 ring-indigo-200'
-                  : isExpired ? 'bg-rose-50/50'
-                  : 'bg-slate-50 hover:bg-purple-50'
-                }`}
-              >
+              className={`group flex flex-col gap-1.5 p-3 rounded-xl transition-all duration-300 ${
+    isEditing ? 'bg-indigo-50 ring-2 ring-indigo-200'
+    : todo.done ? 'bg-[#DADDE0]'
+    : isExpired ? 'bg-rose-50/50'
+    : urgencyColor
+  }`}
+>
                 <div className="flex items-center gap-3">
                   {/* 완료 버튼 */}
                   {!isEditing && (
                     <button
                       onClick={() => toggleDone(todo.id)}
-                      disabled={isCompleting || isExpired}
+                      disabled={isExpired}
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center
                                  shrink-0 transition-colors ${
-                        isCompleting ? 'border-purple-500 bg-purple-500 text-white'
+                        todo.done ? 'border-purple-500 bg-purple-500 text-white'
                         : isExpired ? 'border-rose-300 cursor-not-allowed'
                         : 'border-slate-300 hover:border-purple-500 hover:bg-purple-500 hover:text-white'
                       }`}
                     >
-                      <CheckIcon />
+                      {todo.done && <CheckIcon />}
                     </button>
                   )}
 
@@ -358,17 +333,18 @@ export default function TodoWidget({ data, onDataChange }) {
                     />
                   ) : (
                     <span className={`flex-1 text-sm font-semibold leading-snug transition-all ${
-                      isCompleting || isExpired ? 'line-through text-slate-400' : 'text-slate-700'
+                      todo.done || isExpired ? 'line-through text-slate-400' : 'text-slate-700'
                     }`}>
                       {todo.text}
                     </span>
                   )}
 
-                  {/* 수정 중 확정/취소 버튼 */}
+                  {/* 수정 중 확정/취소 */}
                   {isEditing && (
                     <div className="flex items-center gap-1 shrink-0">
                       <button onClick={() => confirmEdit(todo.id)}
-                        className="w-6 h-6 rounded-lg bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-600 transition-colors">
+                        disabled={!editingText.trim() || !editingDeadline}
+                        className="w-6 h-6 rounded-lg bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-600 disabled:opacity-30 transition-colors">
                         <CheckIcon />
                       </button>
                       <button onClick={cancelEdit}
@@ -379,7 +355,7 @@ export default function TodoWidget({ data, onDataChange }) {
                   )}
 
                   {/* 수정/삭제 버튼 */}
-                  {!isCompleting && !isEditing && (
+                  {!isEditing && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button onClick={() => startEdit(todo)}
                         className="text-slate-300 hover:text-indigo-500 p-1 transition-colors">
@@ -393,38 +369,24 @@ export default function TodoWidget({ data, onDataChange }) {
                   )}
                 </div>
 
-                {/* 수정 중 기일 설정 */}
+                {/* 수정 중 기일 변경 (필수) */}
                 {isEditing && (
-                  <div className="flex flex-col gap-2 pl-1 pt-1 border-t border-indigo-100 mt-1">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setEditingHasDeadline(v => !v)}
-                        className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${
-                          editingHasDeadline ? 'bg-purple-500' : 'bg-slate-200'
-                        }`}
-                      >
-                        <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${
-                          editingHasDeadline ? 'left-4' : 'left-0.5'
-                        }`} />
-                      </button>
-                      <span className="text-[11px] font-bold text-slate-400">기일 설정</span>
-                    </div>
-                    {editingHasDeadline && (
-                      <input
-                        type="datetime-local"
-                        min={minDateTime}
-                        className="w-full px-3 py-1.5 bg-white border-2 border-indigo-100 rounded-lg text-xs font-semibold
-                                   text-slate-700 focus:border-indigo-300 outline-none"
-                        value={editingDeadline}
-                        onChange={e => setEditingDeadline(e.target.value)}
-                      />
-                    )}
+                  <div className="flex flex-col gap-1.5 pl-1 pt-2 border-t border-indigo-100 mt-1">
+                    <label className="text-[11px] font-bold text-slate-400">기일 <span className="text-rose-400">*</span></label>
+                    <input
+                      type="datetime-local"
+                      min={minDateTime}
+                      className="w-full px-3 py-1.5 bg-white border-2 border-indigo-100 rounded-lg text-xs font-semibold
+                                 text-slate-700 focus:border-indigo-300 outline-none"
+                      value={editingDeadline}
+                      onChange={e => setEditingDeadline(e.target.value)}
+                    />
                   </div>
                 )}
 
-                {/* 남은 시간 뱃지 (수정 중 아닐 때) */}
+                {/* 남은 시간 뱃지 */}
                 {!isEditing && timeLeft && (
-                  <div className={`flex items-center gap-1 w-fit px-2 py-0.5 rounded-full text-[10px] font-bold ${urgencyColor}`}>
+                  <div className={`flex items-center gap-1 w-fit px-2 py-0.5 rounded-full text-[10px] font-bold ring-2 ring-white ${urgencyColor}`}>
                     <ClockIcon />
                     {timeLeft.label}
                   </div>
@@ -446,7 +408,6 @@ export default function TodoWidget({ data, onDataChange }) {
             <PlusIcon /> 할 일 추가
           </button>
         </div>
-
       </div>
     </>
   );
