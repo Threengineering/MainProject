@@ -124,17 +124,15 @@ useEffect(() => {
   }, []);
 
   const handleAddClick = (name) => {
-  if (activeWidgets.length < 4 && !activeWidgets.includes(name)) {
-    if (name === 'Todo') {
-      // Todo는 위젯을 먼저 추가한 뒤 위젯 내부 모달이 자동으로 열림
-      setActiveWidgets([...activeWidgets, name]);
-    } else if (Array.isArray(widgetData[name]) && widgetData[name].length > 0) {
-      setActiveWidgets([...activeWidgets, name]);
-    } else {
-      setModalOpen(name);
+    if (activeWidgets.length < 4 && !activeWidgets.includes(name)) {
+      // 이미 데이터(배열)가 있으면 바로 보여주고, 없으면 모달을 띄워 첫 키워드를 입력받습니다.
+      if (Array.isArray(widgetData[name]) && widgetData[name].length > 0) {
+        setActiveWidgets([...activeWidgets, name]);
+      } else {
+        setModalOpen(name);
+      }
     }
-  }
-};
+  };
 
   // 💡 다중 키워드 추가 저장 로직
   const confirmWidget = async (inputValue) => {
@@ -276,8 +274,8 @@ useEffect(() => {
               {widgetName === 'Todo' && (
   <TodoWidget
     data={widgetData.Todo}
+    onRemoveKeyword={deleteIndividualKeyword}
     onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))}
-    initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0}
   />
 )}
           </>
