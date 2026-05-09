@@ -94,13 +94,6 @@ useEffect(() => {
       }
 
       if (data && data.length > 0 && data[0].interests) {
-        if (data[0].interests.Todo) {
-      data[0].interests.Todo = data[0].interests.Todo.map((item, i) =>  // ← 이 부분을
-        typeof item === 'string'
-          ? { id: `legacy_${i}`, text: item, done: false }
-          : item
-      );
-    }
         setWidgetData(data[0].interests);
         // DB에 데이터가 있고, 배열 안에 키워드가 하나라도 있는 항목들만 화면에 띄워줍니다.
         const activeKeys = Object.keys(data[0].interests).filter(key => 
@@ -241,11 +234,11 @@ useEffect(() => {
         </div>
       </nav>
 
-      <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0">
+      <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full h-full">
   {[0, 1, 2, 3].map((index) => {
     const widgetName = activeWidgets[index];
     return (
-      <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden h-full">
+      <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden">
         {widgetName ? (
           <>
             <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -272,12 +265,8 @@ useEffect(() => {
                 />
               )}
               {widgetName === 'Todo' && (
-  <TodoWidget
-    data={widgetData.Todo}
-    onRemoveKeyword={deleteIndividualKeyword}
-    onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))}
-  />
-)}
+                <TodoWidget data={widgetData.Todo} onRemoveKeyword={deleteIndividualKeyword} />
+              )}
           </>
         ) : (
           <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
