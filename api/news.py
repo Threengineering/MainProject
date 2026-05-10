@@ -6,7 +6,7 @@ import feedparser
 router = APIRouter()
 
 @router.get("/{keyword}")
-async def get_news(keyword: str):
+async def get_news(keyword: str, limit: int = 5):
     try:
         encoded_keyword = urllib.parse.quote(keyword)
         rss_url = f"https://news.google.com/rss/search?q={encoded_keyword}&hl=ko&gl=KR&ceid=KR:ko"
@@ -16,7 +16,7 @@ async def get_news(keyword: str):
         feed = feedparser.parse(response.content)
         
         news_items = []
-        for entry in feed.entries[:5]:  # 상위 5개 뉴스
+        for entry in feed.entries[:limit]:  # 상위 limit개 뉴스
             news_items.append({
                 "title": entry.title,
                 "link": entry.link,

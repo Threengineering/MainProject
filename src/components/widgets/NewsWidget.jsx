@@ -16,6 +16,7 @@ export default function NewsWidget({ data, onRemoveKeyword }) {
   const list = Array.isArray(data) ? data : [];
   const [newsData, setNewsData] = useState({});
   const [loading, setLoading] = useState(false);
+  const [newsLimit, setNewsLimit] = useState(5);
 
   useEffect(() => {
     if (list.length === 0) {
@@ -28,7 +29,7 @@ export default function NewsWidget({ data, onRemoveKeyword }) {
       const results = {};
       for (const keyword of list) {
         try {
-          const res = await fetch(`http://localhost:8000/api/news/${encodeURIComponent(keyword)}`);
+          const res = await fetch(`http://localhost:8000/api/news/${encodeURIComponent(keyword)}?limit=${newsLimit}`);
           const json = await res.json();
           if (!json.error) {
             results[keyword] = json.news || [];
@@ -46,12 +47,26 @@ export default function NewsWidget({ data, onRemoveKeyword }) {
     // Refresh every 5 minutes
     const interval = setInterval(fetchNews, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [list.join(',')]);
+  }, [list.join(','), newsLimit]);
 
   return (
     <div className="w-full h-full flex flex-col p-8 bg-white overflow-y-auto">
       {/* Existing Tag Area */}
-      <div className="flex flex-wrap gap-2 mb-6 shrink-0">
+      <div className="flex flex-wrap gap-2 mb-6 shrink-0 items-center">
+        {list.length > 0 && (
+          <div className="mr-2 flex items-center gap-2 text-sm text-slate-500 font-medium">
+            <span>표시 개수:</span>
+            <select 
+              value={newsLimit} 
+              onChange={(e) => setNewsLimit(Number(e.target.value))}
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            >
+              {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
+                <option key={num} value={num}>{num}개</option>
+              ))}
+            </select>
+          </div>
+        )}
         {list.map(k => (
           <KeywordTag 
             key={k} 
