@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware # 1. 미들웨어 추가
+from dotenv import load_dotenv
 import yfinance as yf
+import os
+import requests
+
+load_dotenv()  # .env 파일 읽기
 
 app = FastAPI()
 
@@ -19,32 +24,41 @@ app.add_middleware(
     allow_headers=["*"],             # 모든 헤더 허용
 )
 
-@app.get("/api/stock/{ticker}")
-async def get_stock_price(ticker: str):
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
+
+@app.get("/api/weather/{location}")
+async def get_weather(location: str):
     try:
-        stock = yf.Ticker(ticker)
-        # 💡 전일 데이터를 포함하기 위해 2일치 데이터를 가져옵니다.
-        data = stock.history(period="2d")
+        if not OPENWEATHER_API_KEY:
+            return {"error": "OPENWEATHER_API_KEY 환경 변수가 설정되지 않았습니다."}
         
-        if data.empty or len(data) < 2:
-            # 데이터가 부족할 경우(신규 상장 등) history 대신 info에서 시도
-            current_price = stock.info.get('regularMarketPrice')
-            prev_close = stock.info.get('previousClose')
-            
-            if not current_price or not prev_close:
-                return {"error": "주가 데이터를 찾을 수 없습니다."}
-        else:
-            # data.iloc[-1]은 오늘(최신), data.iloc[-2]는 마지막 거래일(어제)입니다.
-            current_price = data['Close'].iloc[-1]
-            prev_close = data['Close'].iloc[-2]
+        url = "https://api.openweathermap.org/data/2.5/weather"
+        params = {
+            "q": location,
+            "appid": OPENWEATHER_API_KEY,
+            "units": "metric",
+            "lang": "kr"
+        }
         
-        # 💡 등락률 계산: ((현재가 - 전일종가) / 전일종가) * 100
-        change = ((current_price - prev_close) / prev_close) * 100
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        if response.status_code != 200:
+            return {"error": data.get("message", "날씨 정보를 불러오지 못했습니다.")}
+        
+        weather = data["weather"][0]
+        main = data["main"]
+        wind = data.get("wind", {})
         
         return {
-            "ticker": ticker.upper(),
-            "price": round(current_price, 2),
-            "change": round(change, 2)
+            "location": data.get("name", location),
+            "temp": main.get("temp"),
+            "feels_like": main.get("feels_like"),
+            "humidity": main.get("humidity"),
+            "description": weather.get("description"),
+            "icon": weather.get("icon"),
+            "wind_speed": wind.get("speed"),
+            "country": data.get("sys", {}).get("country")
         }
     except Exception as e:
         return {"error": str(e)}
