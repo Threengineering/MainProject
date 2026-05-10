@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "start": "concurrently \"npm run frontend\" \"npm run backend\"",
     "frontend": "npm run dev",
-    "backend": "uvicorn main:app --reload "
+    "backend": "python3 -m uvicorn main:app --reload "
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",
