@@ -11,7 +11,7 @@ const InputModal = ({ type, onClose, onConfirm, initialValue }) => {
   const [value, setValue] = useState(''); // 추가할 새 키워드만 입력받으므로 빈 값으로 시작
   
   const placeholderText = {
-    Weather: "지역 추가 (예: 춘천시 후평동)",
+    Weather: "지역 추가 (예: Chuncheon)",
     News: "관심 뉴스 키워드 추가",
     Stock: "관심 종목 추가",
     Todo: "목표 추가"
@@ -46,6 +46,8 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(null);
   const [stockPrices, setStockPrices] = useState({}); // 실제 가격 저장용
 const [lastUpdated, setLastUpdated] = useState('');
+const [weatherData, setWeatherData] = useState({});
+const [weatherUpdated, setWeatherUpdated] = useState('');
 
 useEffect(() => {
   const fetchPrices = async () => {
@@ -82,6 +84,37 @@ useEffect(() => {
 }, [widgetData.Stock]);
 
   useEffect(() => {
+    const fetchWeather = async () => {
+      const locations = widgetData.Weather;
+      if (!locations || locations.length === 0) {
+        setWeatherData({});
+        return;
+      }
+
+      const results = {};
+      for (const location of locations) {
+        try {
+          const response = await fetch(`http://localhost:8000/api/weather/${encodeURIComponent(location)}`);
+          const data = await response.json();
+          
+          if (!data.error) {
+            results[location] = data;
+          } else {
+            console.error(`${location} 날씨 조회 오류:`, data.error);
+          }
+        } catch (err) {
+          console.error(`${location} 날씨 조회 실패:`, err);
+        }
+      }
+
+      setWeatherData(results);
+      setWeatherUpdated(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
+    };
+
+    fetchWeather();
+  }, [widgetData.Weather]);
+
+  useEffect(() => {
     const fetchProfile = async (user) => {
       const { data, error } = await supabase
         .from('profiles')
@@ -94,13 +127,6 @@ useEffect(() => {
       }
 
       if (data && data.length > 0 && data[0].interests) {
-        if (data[0].interests.Todo) {
-      data[0].interests.Todo = data[0].interests.Todo.map((item, i) =>  // ← 이 부분을
-        typeof item === 'string'
-          ? { id: `legacy_${i}`, text: item, done: false }
-          : item
-      );
-    }
         setWidgetData(data[0].interests);
         // DB에 데이터가 있고, 배열 안에 키워드가 하나라도 있는 항목들만 화면에 띄워줍니다.
         const activeKeys = Object.keys(data[0].interests).filter(key => 
@@ -241,11 +267,11 @@ useEffect(() => {
         </div>
       </nav>
 
-      <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0">
+      <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full h-full">
   {[0, 1, 2, 3].map((index) => {
     const widgetName = activeWidgets[index];
     return (
-      <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden h-full">
+      <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden">
         {widgetName ? (
           <>
             <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -258,7 +284,12 @@ useEffect(() => {
             </div>
             
             {widgetName === 'Weather' && (
-                <WeatherWidget data={widgetData.Weather} onRemoveKeyword={deleteIndividualKeyword} />
+                <WeatherWidget 
+                  data={widgetData.Weather} 
+                  weatherData={weatherData}
+                  lastUpdated={weatherUpdated}
+                  onRemoveKeyword={deleteIndividualKeyword} 
+                />
               )}
               {widgetName === 'News' && (
                 <NewsWidget data={widgetData.News} onRemoveKeyword={deleteIndividualKeyword} />
@@ -272,12 +303,8 @@ useEffect(() => {
                 />
               )}
               {widgetName === 'Todo' && (
-  <TodoWidget
-    data={widgetData.Todo}
-    onRemoveKeyword={deleteIndividualKeyword}
-    onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))}
-  />
-)}
+                <TodoWidget data={widgetData.Todo} onRemoveKeyword={deleteIndividualKeyword} />
+              )}
           </>
         ) : (
           <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
