@@ -145,6 +145,21 @@ useEffect(() => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const toggleFullScreen = () => {
+    const dashboardElement = document.getElementById("dashboard-main");
+    if (!document.fullscreenElement) {
+      // 전체화면 진입
+      dashboardElement.requestFullscreen().catch((err) => {
+        alert(`전체화면 전환 실패: ${err.message}`);
+      });
+    } else {
+      // 전체화면 해제
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
   const handleAddClick = (name) => {
     if (activeWidgets.length < 4 && !activeWidgets.includes(name)) {
       // 이미 데이터(배열)가 있으면 바로 보여주고, 없으면 모달을 띄워 첫 키워드를 입력받습니다.
@@ -277,9 +292,20 @@ useEffect(() => {
             </button>
           ))}
         </div>
+        <button 
+          onClick={toggleFullScreen}
+          className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg font-bold text-[10px] hover:bg-indigo-500 hover:text-white transition-all flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+          </svg>
+          FULLSCREEN
+        </button>
       </nav>
 
-      <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0">
+      <main
+      id="dashboard-main"
+      className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0">
   {[0, 1, 2, 3].map((index) => {
     const widgetName = activeWidgets[index];
     return (
