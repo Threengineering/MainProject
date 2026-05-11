@@ -16,7 +16,7 @@ const WIDGET_CONFIG = [
 const InputModal = ({ type, onClose, onConfirm }) => {
   const [value, setValue] = useState('');
   const placeholderText = {
-    Weather: "지역 추가 (예: 춘천시 후평동)",
+    Weather: "지역 추가 (예: Chuncheon)",
     News: "관심 뉴스 키워드 추가",
     Stock: "관심 종목 추가",
     Todo: "목표 추가"
