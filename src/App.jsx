@@ -162,8 +162,9 @@ export default function App() {
 
   const handleAddClick = (name) => {
     if (activeWidgets.length < 4 && !activeWidgets.includes(name)) {
-      // 이미 데이터(배열)가 있으면 바로 보여주고, 없으면 모달을 띄워 첫 키워드를 입력받습니다.
-      if (Array.isArray(widgetData[name]) && widgetData[name].length > 0) {
+      if (name === 'Todo') {
+        setActiveWidgets([...activeWidgets, name]);
+      } else if (Array.isArray(widgetData[name]) && widgetData[name].length > 0) {
         setActiveWidgets([...activeWidgets, name]);
       } else {
         setModalOpen(name);
@@ -347,8 +348,8 @@ export default function App() {
                   {widgetName === 'Todo' && (
                     <TodoWidget
                       data={widgetData.Todo}
-                      onRemoveKeyword={deleteIndividualKeyword}
                       onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))}
+                      initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0}
                     />
                   )}
                 </>
