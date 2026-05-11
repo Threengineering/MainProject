@@ -7,11 +7,10 @@ router = APIRouter()
 async def get_stock_price(ticker: str):
     try:
         stock = yf.Ticker(ticker)
-        # 💡 전일 데이터를 포함하기 위해 2일치 데이터를 가져옵니다.
+        # 전일 데이터를 포함하기 위해 2일치 데이터를 가져옵니다.
         data = stock.history(period="2d")
         
         if data.empty or len(data) < 2:
-            # 데이터가 부족할 경우(신규 상장 등) history 대신 info에서 시도
             current_price = stock.info.get('regularMarketPrice')
             prev_close = stock.info.get('previousClose')
             
@@ -22,7 +21,7 @@ async def get_stock_price(ticker: str):
             current_price = data['Close'].iloc[-1]
             prev_close = data['Close'].iloc[-2]
         
-        # 💡 등락률 계산: ((현재가 - 전일종가) / 전일종가) * 100
+        # 등락률 계산: ((현재가 - 전일종가) / 전일종가) * 100
         change = ((current_price - prev_close) / prev_close) * 100
         
         return {

@@ -45,41 +45,40 @@ export default function App() {
   const [widgetData, setWidgetData] = useState({});       
   const [modalOpen, setModalOpen] = useState(null);
   const [stockPrices, setStockPrices] = useState({}); // 실제 가격 저장용
-const [lastUpdated, setLastUpdated] = useState('');
+  const [lastUpdated, setLastUpdated] = useState('');
+  const [newsLimit, setNewsLimit] = useState(5);
 
 useEffect(() => {
   const fetchPrices = async () => {
-    // 1. DB(Supabase)에서 가져온 종목 리스트가 있는지 확인
     const tickers = widgetData.Stock; 
-    if (!tickers || tickers.length === 0) return;
+    if (!tickers || tickers.length === 0) {
+      setStockPrices({});
+      return;
+    }
 
     const results = {};
     for (const ticker of tickers) {
       try {
-        // 2. M3 맥북에서 돌아가는 FastAPI 서버에 요청
         const response = await fetch(`http://localhost:8000/api/stock/${ticker}`);
         const data = await response.json();
-        
         if (!data.error) {
-          results[ticker] = data; // { ticker: 'NVDA', price: 900.12, change: 2.5 } 형식
+          results[ticker] = data;
         }
       } catch (err) {
         console.error(`${ticker} 연결 실패:`, err);
       }
     }
-
-    // 3. 상태 업데이트 -> 리렌더링 유발
     setStockPrices(results);
     setLastUpdated(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
   };
 
-  // 처음 마운트될 때 실행
   fetchPrices();
 
-  // 1분(60000ms)마다 반복 호출
   const timer = setInterval(fetchPrices, 60000);
   return () => clearInterval(timer);
-}, [widgetData.Stock]);
+
+
+}, [JSON.stringify(widgetData.Stock)]);
 
   useEffect(() => {
     const fetchProfile = async (user) => {
@@ -94,17 +93,24 @@ useEffect(() => {
       }
 
       if (data && data.length > 0 && data[0].interests) {
-        if (data[0].interests.Todo) {
-      data[0].interests.Todo = data[0].interests.Todo.map((item, i) =>  // ← 이 부분을
-        typeof item === 'string'
-          ? { id: `legacy_${i}`, text: item, done: false }
-          : item
-      );
-    }
-        setWidgetData(data[0].interests);
-        // DB에 데이터가 있고, 배열 안에 키워드가 하나라도 있는 항목들만 화면에 띄워줍니다.
-        const activeKeys = Object.keys(data[0].interests).filter(key => 
-          Array.isArray(data[0].interests[key]) && data[0].interests[key].length > 0
+        const interests = data[0].interests;
+
+        
+        if (interests.NewsLimit) {
+          setNewsLimit(interests.NewsLimit);
+        }
+
+        if (interests.Todo) {
+          interests.Todo = interests.Todo.map((item, i) => 
+            typeof item === 'string'
+              ? { id: `legacy_${i}`, text: item, done: false }
+              : item
+          );
+        }
+        setWidgetData(interests);
+        
+        const activeKeys = Object.keys(interests).filter(key => 
+          Array.isArray(interests[key]) && interests[key].length > 0
         );
         setActiveWidgets(activeKeys);
       }
@@ -158,7 +164,6 @@ useEffect(() => {
     }
   };
 
-  // 💡 개별 키워드 삭제 함수
   const deleteIndividualKeyword = async (type, keywordToDelete) => {
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -181,20 +186,27 @@ useEffect(() => {
       alert("삭제 실패: " + error.message);
     }
   };
+  const handleNewsLimitChange = async (newLimit) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // interests 객체에 NewsLimit 키 추가/업데이트
+    const updatedInterests = { ...widgetData, NewsLimit: newLimit };
 
-<<<<<<< Updated upstream
+    const { error } = await supabase
+      .from('profiles')
+      .update({ interests: updatedInterests })
+      .eq('id', user.id);
+
+    if (!error) {
+      setNewsLimit(newLimit);
+      setWidgetData(updatedInterests);
+    } else {
+      console.error("NewsLimit 저장 실패:", error.message);
+    }
+  };
+
   const removeWidget = (name) => {
     setActiveWidgets(activeWidgets.filter(w => w !== name));
-=======
-  const handleNewsLimitChange = async (newLimit) => {
-    setNewsLimit(newLimit);
-    const { data: { user } } = await supabase.auth.getUser();
-    const updatedInterests = { ...widgetData, NewsLimit: newLimit };
-    const { error } = await supabase.from('profiles').update({ interests: updatedInterests }).eq('id', user.id);
-    if (!error) {
-      setWidgetData(updatedInterests);
-    }
->>>>>>> Stashed changes
   };
 
   if (!session) return (
@@ -252,22 +264,6 @@ useEffect(() => {
         </div>
       </nav>
 
-<<<<<<< Updated upstream
-      <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0">
-  {[0, 1, 2, 3].map((index) => {
-    const widgetName = activeWidgets[index];
-    return (
-      <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden h-full">
-        {widgetName ? (
-          <>
-            <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors">
-                <SettingsIcon />
-              </button>
-              <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors">
-                <XIcon />
-              </button>
-=======
       <main id="dashboard-main" className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0 bg-slate-200">
         {[0, 1, 2, 3].map((index) => {
           const widgetName = activeWidgets[index];
@@ -279,7 +275,7 @@ useEffect(() => {
                     <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors"><SettingsIcon /></button>
                     <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors"><XIcon /></button>
                   </div>
-                  {widgetName === 'Weather' && <WeatherWidget data={widgetData.Weather} weatherData={weatherData} lastUpdated={weatherUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
+                  {widgetName === 'Weather' && <WeatherWidget data={widgetData.Weather} onRemoveKeyword={deleteIndividualKeyword} />}
                   {widgetName === 'News' && <NewsWidget data={widgetData.News} newsLimit={newsLimit} onLimitChange={handleNewsLimitChange} onRemoveKeyword={deleteIndividualKeyword} />}
                   {widgetName === 'Stock' && <StockWidget data={widgetData.Stock} stockPrices={stockPrices} lastUpdated={lastUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
                   {widgetName === 'Todo' && <TodoWidget data={widgetData.Todo} onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))} initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0} />}
@@ -289,40 +285,10 @@ useEffect(() => {
                   <div className="text-8xl font-black">0{index + 1}</div>
                 </div>
               )}
->>>>>>> Stashed changes
             </div>
-            
-            {widgetName === 'Weather' && (
-                <WeatherWidget data={widgetData.Weather} onRemoveKeyword={deleteIndividualKeyword} />
-              )}
-              {widgetName === 'News' && (
-                <NewsWidget data={widgetData.News} onRemoveKeyword={deleteIndividualKeyword} />
-              )}
-              {widgetName === 'Stock' && (
-                <StockWidget 
-                  data={widgetData.Stock} 
-                  stockPrices={stockPrices} 
-                  lastUpdated={lastUpdated}
-                  onRemoveKeyword={deleteIndividualKeyword} 
-                />
-              )}
-              {widgetName === 'Todo' && (
-  <TodoWidget
-    data={widgetData.Todo}
-    onRemoveKeyword={deleteIndividualKeyword}
-    onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))}
-  />
-)}
-          </>
-        ) : (
-          <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
-            <div className="text-8xl font-black">0{index + 1}</div>
-          </div>
-        )}
-      </div>
-    );
-  })}
-</main>
+          );
+        })}
+      </main>
     </div>
   );
 }

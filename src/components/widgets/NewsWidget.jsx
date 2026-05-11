@@ -12,11 +12,10 @@ const getTimeAgo = (dateString) => {
   return `${Math.floor(diffInHours / 24)}일 전`;
 };
 
-export default function NewsWidget({ data, onRemoveKeyword }) {
+export default function NewsWidget({ data, newsLimit, onLimitChange, onRemoveKeyword }) {
   const list = Array.isArray(data) ? data : [];
   const [newsData, setNewsData] = useState({});
   const [loading, setLoading] = useState(false);
-  const [newsLimit, setNewsLimit] = useState(5);
 
   useEffect(() => {
     if (list.length === 0) {
@@ -29,13 +28,14 @@ export default function NewsWidget({ data, onRemoveKeyword }) {
       const results = {};
       for (const keyword of list) {
         try {
+          // props로 받은 newsLimit 사용
           const res = await fetch(`http://localhost:8000/api/news/${encodeURIComponent(keyword)}?limit=${newsLimit}`);
           const json = await res.json();
           if (!json.error) {
             results[keyword] = json.news || [];
           }
         } catch (error) {
-          console.error(`Failed to fetch news for ${keyword}:`, error);
+          console.error(error);
         }
       }
       setNewsData(results);
@@ -58,8 +58,8 @@ export default function NewsWidget({ data, onRemoveKeyword }) {
             <span>표시 개수:</span>
             <select 
               value={newsLimit} 
-              onChange={(e) => setNewsLimit(Number(e.target.value))}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              onChange={(e) => onLimitChange(Number(e.target.value))} 
+              className="..."
             >
               {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
                 <option key={num} value={num}>{num}개</option>
