@@ -182,8 +182,19 @@ useEffect(() => {
     }
   };
 
+<<<<<<< Updated upstream
   const removeWidget = (name) => {
     setActiveWidgets(activeWidgets.filter(w => w !== name));
+=======
+  const handleNewsLimitChange = async (newLimit) => {
+    setNewsLimit(newLimit);
+    const { data: { user } } = await supabase.auth.getUser();
+    const updatedInterests = { ...widgetData, NewsLimit: newLimit };
+    const { error } = await supabase.from('profiles').update({ interests: updatedInterests }).eq('id', user.id);
+    if (!error) {
+      setWidgetData(updatedInterests);
+    }
+>>>>>>> Stashed changes
   };
 
   if (!session) return (
@@ -241,6 +252,7 @@ useEffect(() => {
         </div>
       </nav>
 
+<<<<<<< Updated upstream
       <main className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0">
   {[0, 1, 2, 3].map((index) => {
     const widgetName = activeWidgets[index];
@@ -255,6 +267,29 @@ useEffect(() => {
               <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors">
                 <XIcon />
               </button>
+=======
+      <main id="dashboard-main" className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0 bg-slate-200">
+        {[0, 1, 2, 3].map((index) => {
+          const widgetName = activeWidgets[index];
+          return (
+            <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden h-full w-full">
+              {widgetName ? (
+                <div className="w-full h-full">
+                  <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors"><SettingsIcon /></button>
+                    <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors"><XIcon /></button>
+                  </div>
+                  {widgetName === 'Weather' && <WeatherWidget data={widgetData.Weather} weatherData={weatherData} lastUpdated={weatherUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
+                  {widgetName === 'News' && <NewsWidget data={widgetData.News} newsLimit={newsLimit} onLimitChange={handleNewsLimitChange} onRemoveKeyword={deleteIndividualKeyword} />}
+                  {widgetName === 'Stock' && <StockWidget data={widgetData.Stock} stockPrices={stockPrices} lastUpdated={lastUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
+                  {widgetName === 'Todo' && <TodoWidget data={widgetData.Todo} onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))} initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0} />}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
+                  <div className="text-8xl font-black">0{index + 1}</div>
+                </div>
+              )}
+>>>>>>> Stashed changes
             </div>
             
             {widgetName === 'Weather' && (
