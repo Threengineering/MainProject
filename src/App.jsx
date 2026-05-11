@@ -47,7 +47,9 @@ export default function App() {
   const [stockPrices, setStockPrices] = useState({}); // 실제 가격 저장용
   const [lastUpdated, setLastUpdated] = useState('');
   const [newsLimit, setNewsLimit] = useState(5);
-
+  const [weatherData, setWeatherData] = useState({});
+  const [weatherUpdated, setWeatherUpdated] = useState('');
+//주식
 useEffect(() => {
   const fetchPrices = async () => {
     const tickers = widgetData.Stock; 
@@ -79,6 +81,29 @@ useEffect(() => {
 
 
 }, [JSON.stringify(widgetData.Stock)]);
+//날씨 
+  useEffect(() => {
+    const fetchWeather = async () => {
+      const locations = widgetData.Weather;
+      if (!locations || locations.length === 0) {
+        setWeatherData({});
+        return;
+      }
+      const results = {};
+      for (const location of locations) {
+        try {
+          const response = await fetch(`http://localhost:8000/api/weather/${encodeURIComponent(location)}`);
+          const data = await response.json();
+          if (!data.error) results[location] = data;
+        } catch (err) { console.error(`${location} 날씨 조회 실패:`, err); }
+      }
+      setWeatherData(results);
+      setWeatherUpdated(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
+    };
+    fetchWeather();
+    const timer = setInterval(fetchWeather, 600000); // 날씨는 10분 주기 권장
+    return () => clearInterval(timer);
+  }, [JSON.stringify(widgetData.Weather)]);
 
   useEffect(() => {
     const fetchProfile = async (user) => {
@@ -87,24 +112,16 @@ useEffect(() => {
         .select('interests')
         .eq('id', user.id);
 
-      if (error) {
-        console.error("데이터 로딩 에러:", error.message);
-        return;
-      }
+      if (error) { console.error("데이터 로딩 에러:", error.message); return; }
 
       if (data && data.length > 0 && data[0].interests) {
         const interests = data[0].interests;
 
-        
-        if (interests.NewsLimit) {
-          setNewsLimit(interests.NewsLimit);
-        }
+        if (interests.NewsLimit) setNewsLimit(interests.NewsLimit);
 
         if (interests.Todo) {
           interests.Todo = interests.Todo.map((item, i) => 
-            typeof item === 'string'
-              ? { id: `legacy_${i}`, text: item, done: false }
-              : item
+            typeof item === 'string' ? { id: `legacy_${i}`, text: item, done: false } : item
           );
         }
         setWidgetData(interests);
@@ -125,7 +142,6 @@ useEffect(() => {
       setSession(session);
       if (session) fetchProfile(session.user);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
