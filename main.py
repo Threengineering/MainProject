@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware # 1. 미들웨어 추가
 import yfinance as yf
 from api.news import router as news_router
 from api.stock import router as stock_router
+from api.weather import router as weather_router
 
 app = FastAPI()
 
@@ -22,5 +23,6 @@ app.add_middleware(
 )
 app.include_router(news_router, prefix="/api/news")
 app.include_router(stock_router, prefix="/api/stock")
+app.include_router(weather_router, prefix="/api/weather")
 
 
