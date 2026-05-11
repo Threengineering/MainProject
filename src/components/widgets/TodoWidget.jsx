@@ -58,11 +58,11 @@ function getTimeLeft(deadline, now) {
 // 긴급도에 따른 색상 (배경 + 텍스트 모두 진해짐)
 function getUrgencyColor(timeLeft) {
   if (!timeLeft) return '';
-  if (timeLeft.expired)            return 'text-white bg-rose-500';          // 초과: 진빨강
-  if (timeLeft.urgency < 1 / 24)   return 'text-white bg-rose-400';          // 1시간 미만: 빨강
-  if (timeLeft.urgency < 1)        return 'text-white bg-orange-400';        // 1일 미만: 주황
-  if (timeLeft.urgency < 3)        return 'text-white bg-amber-400';         // 3일 미만: 노랑
-  if (timeLeft.urgency < 7)        return 'text-amber-700 bg-amber-100';     // 7일 미만: 연노랑
+  if (timeLeft.expired) return 'text-white bg-rose-500';          // 초과: 진빨강
+  if (timeLeft.urgency < 1 / 24) return 'text-white bg-rose-400';          // 1시간 미만: 빨강
+  if (timeLeft.urgency < 1) return 'text-white bg-orange-400';        // 1일 미만: 주황
+  if (timeLeft.urgency < 3) return 'text-white bg-amber-400';         // 3일 미만: 노랑
+  if (timeLeft.urgency < 7) return 'text-amber-700 bg-amber-100';     // 7일 미만: 연노랑
   return 'text-slate-500 bg-slate-100';                                       // 7일 이상: 회색
 }
 
@@ -295,13 +295,12 @@ export default function TodoWidget({ data, onDataChange, initialShowModal, onMod
 
             return (
               <div key={todo.id}
-              className={`group flex flex-col gap-1.5 p-3 rounded-xl transition-all duration-300 ${
-    isEditing ? 'bg-indigo-50 ring-2 ring-indigo-200'
-    : todo.done ? 'bg-[#DADDE0]'
-    : isExpired ? 'bg-rose-50/50'
-    : urgencyColor
-  }`}
->
+                className={`group flex flex-col gap-1.5 p-3 rounded-xl transition-all duration-300 ${isEditing ? 'bg-indigo-50 ring-2 ring-indigo-200'
+                    : todo.done ? 'bg-[#DADDE0]'
+                      : isExpired ? 'bg-rose-50/50'
+                        : urgencyColor
+                  }`}
+              >
                 <div className="flex items-center gap-3">
                   {/* 완료 버튼 */}
                   {!isEditing && (
@@ -309,11 +308,10 @@ export default function TodoWidget({ data, onDataChange, initialShowModal, onMod
                       onClick={() => toggleDone(todo.id)}
                       disabled={isExpired}
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center
-                                 shrink-0 transition-colors ${
-                        todo.done ? 'border-purple-500 bg-purple-500 text-white'
-                        : isExpired ? 'border-rose-300 cursor-not-allowed'
-                        : 'border-slate-300 hover:border-purple-500 hover:bg-purple-500 hover:text-white'
-                      }`}
+                                 shrink-0 transition-colors ${todo.done ? 'border-purple-500 bg-purple-500 text-white'
+                          : isExpired ? 'border-rose-300 cursor-not-allowed'
+                            : 'border-slate-300 hover:border-purple-500 hover:bg-purple-500 hover:text-white'
+                        }`}
                     >
                       {todo.done && <CheckIcon />}
                     </button>
@@ -332,9 +330,8 @@ export default function TodoWidget({ data, onDataChange, initialShowModal, onMod
                       }}
                     />
                   ) : (
-                    <span className={`flex-1 text-sm font-semibold leading-snug transition-all ${
-                      todo.done || isExpired ? 'line-through text-slate-400' : 'text-slate-700'
-                    }`}>
+                    <span className={`flex-1 text-sm font-semibold leading-snug transition-all ${todo.done || isExpired ? 'line-through text-slate-400' : 'text-slate-700'
+                      }`}>
                       {todo.text}
                     </span>
                   )}

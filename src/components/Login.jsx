@@ -17,8 +17,8 @@ const Login = () => {
       <div className="p-8 bg-white rounded-2xl shadow-xl flex flex-col items-center">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">PROTO:MIRACLE</h1>
         <p className="text-gray-500 mb-8 text-sm">바쁜 현대인을 위한 대시보드</p>
-        
-        <button 
+
+        <button
           onClick={handleGoogleLogin}
           className="flex items-center justify-center gap-3 px-6 py-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-all shadow-sm font-medium text-gray-700"
         >
