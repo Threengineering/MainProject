@@ -5,7 +5,7 @@ const getTimeAgo = (dateString) => {
   const newsDate = new Date(dateString);
   const now = new Date();
   const diffInHours = Math.floor((now - newsDate) / (1000 * 60 * 60));
-  
+
   if (isNaN(diffInHours)) return '';
   if (diffInHours === 0) return '방금 전';
   if (diffInHours < 24) return `${diffInHours}시간 전`;
@@ -43,7 +43,7 @@ export default function NewsWidget({ data, newsLimit, onLimitChange, onRemoveKey
     };
 
     fetchNews();
-    
+
     // Refresh every 5 minutes
     const interval = setInterval(fetchNews, 5 * 60 * 1000);
     return () => clearInterval(interval);
@@ -56,9 +56,9 @@ export default function NewsWidget({ data, newsLimit, onLimitChange, onRemoveKey
         {list.length > 0 && (
           <div className="mr-2 flex items-center gap-2 text-sm text-slate-500 font-medium">
             <span>표시 개수:</span>
-            <select 
-              value={newsLimit} 
-              onChange={(e) => onLimitChange(Number(e.target.value))} 
+            <select
+              value={newsLimit}
+              onChange={(e) => onLimitChange(Number(e.target.value))}
               className="..."
             >
               {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
@@ -68,15 +68,15 @@ export default function NewsWidget({ data, newsLimit, onLimitChange, onRemoveKey
           </div>
         )}
         {list.map(k => (
-          <KeywordTag 
-            key={k} 
-            label={k} 
-            colorClass="bg-emerald-50 text-emerald-600" 
-            onRemove={() => onRemoveKeyword('News', k)} 
+          <KeywordTag
+            key={k}
+            label={k}
+            colorClass="bg-emerald-50 text-emerald-600"
+            onRemove={() => onRemoveKeyword('News', k)}
           />
         ))}
       </div>
-      
+
       {/* News Content Area */}
       <div className="flex-1 flex flex-col gap-6">
         {list.length === 0 ? (
@@ -100,10 +100,10 @@ export default function NewsWidget({ data, newsLimit, onLimitChange, onRemoveKey
                 </h5>
                 <div className="flex flex-col gap-2">
                   {items.map((news, idx) => (
-                    <a 
-                      key={idx} 
-                      href={news.link} 
-                      target="_blank" 
+                    <a
+                      key={idx}
+                      href={news.link}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="group flex flex-col gap-1 hover:bg-slate-50 p-2 -mx-2 rounded-xl transition-all"
                     >

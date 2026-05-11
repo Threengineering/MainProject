@@ -7,7 +7,7 @@ export const DefaultWidget = ({ type, data, onRemoveKeyword }) => {
         {list.map(k => <KeywordTag key={k} label={k} colorClass={colorMap[type] || "bg-slate-50 text-slate-600"} onRemove={() => onRemoveKeyword(type, k)} />)}
       </div>
       <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">{type}</span>
-      <div className="text-2xl font-black text-slate-800 mt-1">{list.length > 0 ? list[list.length-1] : "데이터 없음"}</div>
+      <div className="text-2xl font-black text-slate-800 mt-1">{list.length > 0 ? list[list.length - 1] : "데이터 없음"}</div>
     </div>
   );
 };
