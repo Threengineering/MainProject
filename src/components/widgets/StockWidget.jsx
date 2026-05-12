@@ -33,13 +33,13 @@ export default function StockWidget({ data, onRemoveKeyword, stockPrices = {}, l
 
           return (
             <div key={ticker} className="relative group flex flex-col justify-center p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-all">
-              <button 
+              <button
                 onClick={() => onRemoveKeyword('Stock', ticker)}
                 className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500"
               >
                 <XIcon />
               </button>
-              
+
               <div className="flex justify-between items-end">
                 <div>
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{ticker}</h3>
