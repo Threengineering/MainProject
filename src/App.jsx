@@ -5,6 +5,7 @@ import NewsWidget from './components/widgets/NewsWidget';
 import TodoWidget from './components/widgets/TodoWidget';
 import StockWidget from './components/widgets/StockWidget';
 import CalendarWidget from './components/widgets/CalendarWidget';
+import RadioWidget from './components/widgets/RadioWidget';
 import { SettingsIcon, XIcon } from './components/widgets/Icons';
 
 const WIDGET_CONFIG = [
@@ -13,6 +14,7 @@ const WIDGET_CONFIG = [
   { id: 'Todo', label: 'Todo' },
   { id: 'Stock', label: 'Stock' },
   { id: 'Calendar', label: 'Calendar' },
+  { id: 'Radio', label: 'Radio' },
 ];
 
 const InputModal = ({ type, onClose, onConfirm }) => {
@@ -160,7 +162,7 @@ export default function App() {
   const handleAddClick = (name) => {
     if (!activeWidgets.includes(name)) {
       const nextWidgets = [...activeWidgets, name];
-      if (name === 'Todo' || name === 'Calendar' || widgetData[name]?.length > 0) {
+      if (name === 'Todo' || name === 'Calendar' || name === 'Radio' || widgetData[name]?.length > 0) {
         setActiveWidgets(nextWidgets);
         saveWidgetLayout(nextWidgets); // 💡 저장
       } else {
@@ -308,6 +310,9 @@ export default function App() {
                 {widgetName === 'Stock' && <StockWidget data={widgetData.Stock} stockPrices={stockPrices} lastUpdated={lastUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
                 {widgetName === 'Todo' && <TodoWidget data={widgetData.Todo} onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))} initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0} />}
                 {widgetName === 'Calendar' && <CalendarWidget providerToken={session?.provider_token} />}
+                {widgetName === 'Radio' && (
+                  <RadioWidget widgetData={widgetData} weatherData={weatherData} />
+                )}
               </div>
             </div>
           ))
