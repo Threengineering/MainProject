@@ -296,40 +296,41 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
       }}
     >
       {/* 상단 헤더 */}
-      <div className="px-6 pt-6 pb-3 flex items-start justify-between shrink-0">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
+      <div className="px-6 pt-6 pb-3 shrink-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span
+            className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded"
+            style={{ background: 'rgba(99,102,241,0.3)', color: '#a5b4fc' }}
+          >
+            Radio
+          </span>
+          {status === 'playing' && (
             <span
-              className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded"
-              style={{ background: 'rgba(99,102,241,0.3)', color: '#a5b4fc' }}
+              className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded animate-pulse"
+              style={{ background: 'rgba(239,68,68,0.25)', color: '#fca5a5' }}
             >
-              Radio
+              ● ON AIR
             </span>
-            {status === 'playing' && (
-              <span
-                className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded animate-pulse"
-                style={{ background: 'rgba(239,68,68,0.25)', color: '#fca5a5' }}
-              >
-                ● ON AIR
-              </span>
-            )}
-          </div>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
           <h2
             className="text-xl font-black tracking-tight leading-none"
             style={{ color: '#e2e8f0' }}
           >
             오늘의 브리핑
           </h2>
-          <p className="text-[10px] mt-0.5" style={{ color: '#6366f1' }}>
-            {new Date().toLocaleDateString('ko-KR', {
-              month: 'long',
-              day: 'numeric',
-              weekday: 'short',
-            })}
-          </p>
+          <RefreshButton onClick={fetchScript} loading={loading} />
         </div>
-        <RefreshButton onClick={fetchScript} loading={loading} />
+        <p className="text-[10px] mt-1" style={{ color: '#6366f1' }}>
+          {new Date().toLocaleDateString('ko-KR', {
+            month: 'long',
+            day: 'numeric',
+            weekday: 'short',
+          })}
+        </p>
       </div>
+
 
       {/* 파형 / 로딩 */}
       <div className="px-6 py-2 shrink-0" style={{ color: '#6366f1' }}>
