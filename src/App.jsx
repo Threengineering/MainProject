@@ -4,6 +4,7 @@ import WeatherWidget from './components/widgets/WeatherWidget';
 import NewsWidget from './components/widgets/NewsWidget';
 import TodoWidget from './components/widgets/TodoWidget';
 import StockWidget from './components/widgets/StockWidget';
+import CalendarWidget from './components/widgets/CalendarWidget';
 import { SettingsIcon, XIcon } from './components/widgets/Icons';
 
 const WIDGET_CONFIG = [
@@ -11,6 +12,7 @@ const WIDGET_CONFIG = [
   { id: 'Weather', label: 'Weather' },
   { id: 'Todo', label: 'Todo' },
   { id: 'Stock', label: 'Stock' },
+  { id: 'Calendar', label: 'Calendar' },
 ];
 
 const InputModal = ({ type, onClose, onConfirm }) => {
@@ -156,9 +158,9 @@ export default function App() {
 
   // ── 위젯 추가 시 위치 저장 ──
   const handleAddClick = (name) => {
-    if (activeWidgets.length < 4 && !activeWidgets.includes(name)) {
+    if (!activeWidgets.includes(name)) {
       const nextWidgets = [...activeWidgets, name];
-      if (name === 'Todo' || widgetData[name]?.length > 0) {
+      if (name === 'Todo' || name === 'Calendar' || widgetData[name]?.length > 0) {
         setActiveWidgets(nextWidgets);
         saveWidgetLayout(nextWidgets); // 💡 저장
       } else {
@@ -234,7 +236,10 @@ export default function App() {
 
   if (!session) return (
     <div className="h-screen flex items-center justify-center bg-slate-50">
-      <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })} className="px-8 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm font-bold flex items-center gap-3 hover:bg-slate-50 transition-all">
+      <button onClick={() => supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { scopes: 'https://www.googleapis.com/auth/calendar.readonly' }
+      })} className="px-8 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm font-bold flex items-center gap-3 hover:bg-slate-50 transition-all">
         <img className="w-6 h-6" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" />
         Google로 시작하기
       </button>
@@ -279,30 +284,34 @@ export default function App() {
         </div>
       </nav>
 
-      <main id="dashboard-main" className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0 bg-slate-200">
-        {[0, 1, 2, 3].map((index) => {
-          const widgetName = activeWidgets[index];
-          return (
-            <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden h-full w-full">
-              {widgetName ? (
-                <div className="w-full h-full">
-                  <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors"><SettingsIcon /></button>
-                    <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors"><XIcon /></button>
-                  </div>
-                  {widgetName === 'Weather' && <WeatherWidget data={widgetData.Weather} weatherData={weatherData} lastUpdated={weatherUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
-                  {widgetName === 'News' && <NewsWidget data={widgetData.News} newsLimit={newsLimit} onLimitChange={handleNewsLimitChange} onRemoveKeyword={deleteIndividualKeyword} />}
-                  {widgetName === 'Stock' && <StockWidget data={widgetData.Stock} stockPrices={stockPrices} lastUpdated={lastUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
-                  {widgetName === 'Todo' && <TodoWidget data={widgetData.Todo} onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))} initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0} />}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
-                  <div className="text-8xl font-black">0{index + 1}</div>
-                </div>
-              )}
+      <main id="dashboard-main" className={`flex-1 grid gap-[1px] w-full min-h-0 bg-slate-200 ${activeWidgets.length <= 1 ? "grid-cols-1 grid-rows-1" :
+          activeWidgets.length === 2 ? "grid-cols-2 grid-rows-1" :
+            activeWidgets.length <= 4 ? "grid-cols-2 grid-rows-2" :
+              activeWidgets.length <= 6 ? "grid-cols-3 grid-rows-2" : "grid-cols-3 grid-rows-3"
+        }`}>
+        {activeWidgets.length === 0 ? (
+          <div className="relative bg-white flex items-center justify-center h-full w-full">
+            <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
+              <div className="text-8xl font-black">01</div>
             </div>
-          );
-        })}
+          </div>
+        ) : (
+          activeWidgets.map((widgetName, index) => (
+            <div key={widgetName} className="relative bg-white flex items-center justify-center group overflow-hidden h-full w-full">
+              <div className="w-full h-full">
+                <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors"><SettingsIcon /></button>
+                  <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors"><XIcon /></button>
+                </div>
+                {widgetName === 'Weather' && <WeatherWidget data={widgetData.Weather} weatherData={weatherData} lastUpdated={weatherUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
+                {widgetName === 'News' && <NewsWidget data={widgetData.News} newsLimit={newsLimit} onLimitChange={handleNewsLimitChange} onRemoveKeyword={deleteIndividualKeyword} />}
+                {widgetName === 'Stock' && <StockWidget data={widgetData.Stock} stockPrices={stockPrices} lastUpdated={lastUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
+                {widgetName === 'Todo' && <TodoWidget data={widgetData.Todo} onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))} initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0} />}
+                {widgetName === 'Calendar' && <CalendarWidget providerToken={session?.provider_token} />}
+              </div>
+            </div>
+          ))
+        )}
       </main>
     </div>
   );
