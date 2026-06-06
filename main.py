@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware # 1. 미들웨어 추가
 import yfinance as yf
@@ -28,5 +31,3 @@ app.include_router(stock_router, prefix="/api/stock")
 app.include_router(weather_router, prefix="/api/weather")
 app.include_router(holidays_router, prefix="/api/holidays")
 app.include_router(briefing_router, prefix="/api/briefing")
-
-

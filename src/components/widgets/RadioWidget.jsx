@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 // --- 오디오 스타일 옵션 (속도 및 음고 조합) ---
 const VOICE_STYLES = [
   { id: 'default', label: '기본 톤', rate: 0.95, pitch: 1.05 },
@@ -179,13 +180,14 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
         const newsSummaries = [];
         for (const keyword of newsKeywords) {
           try {
-            const res = await fetch(`http://localhost:8000/api/news/${encodeURIComponent(keyword)}?limit=2`);
-            const data = await res.json();
-            if (data.news && data.news.length > 0) {
-              const titles = data.news.map((n) => n.title).join(', ');
-              newsSummaries.push(`[${keyword}] ${titles}`);
+            const res = await fetch(`${API_BASE}/api/news/${encodeURIComponent(keyword)}?limit=2`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.news?.length > 0) {
+                newsSummaries.push(`[${keyword}] ${data.news.map(n => n.title).join(', ')}`);
+              }
             }
-          } catch {}
+          } catch { }
         }
         if (newsSummaries.length > 0) newsText = newsSummaries.join(' | ');
       }
@@ -197,13 +199,13 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
         const stockResults = [];
         for (const ticker of stockTickers) {
           try {
-            const res = await fetch(`http://localhost:8000/api/stock/${ticker}`);
-            const data = await res.json();
-            if (!data.error) {
+            const res = await fetch(`${API_BASE}/api/stock/${ticker}`);
+            if (res.ok) {
+              const data = await res.json();
               const dir = data.change >= 0 ? '상승' : '하락';
               stockResults.push(`${ticker} ${data.price}달러, 전일 대비 ${dir} ${Math.abs(data.change)}퍼센트`);
             }
-          } catch {}
+          } catch { }
         }
         if (stockResults.length > 0) stockText = stockResults.join(', ');
       }
@@ -226,11 +228,12 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
         todo: todoText,
       };
 
-      const res = await fetch('http://localhost:8000/api/briefing/generate', {
+      const res = await fetch(`${API_BASE}/api/briefing/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (!res.ok) throw new Error(`briefing 생성 실패: ${res.status}`);
       const data = await res.json();
       const text = data.script || '대본을 가져올 수 없습니다.';
       setScript(text);
@@ -242,7 +245,7 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetData, weatherData]);
 
   const stopSpeech = () => {
@@ -276,7 +279,7 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
       // 선택한 음성 및 스타일 적용
       const voicesList = window.speechSynthesis.getVoices();
       const [voiceName, styleId] = selectedVoiceKey.split('__');
-      
+
       const selectedVoice = voicesList.find((v) => v.name === voiceName);
       if (selectedVoice) {
         utter.voice = selectedVoice;
@@ -384,7 +387,7 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
 
           {voices.length > 0 && (
             <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1 border border-white/5 max-w-[150px] shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-indigo-400 shrink-0"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-indigo-400 shrink-0"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v1a7 7 0 0 1-14 0v-1" /><line x1="12" x2="12" y1="19" y2="22" /></svg>
               <select
                 value={selectedVoiceKey}
                 onChange={(e) => {
@@ -395,7 +398,7 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
                 }}
                 className="bg-transparent text-[10px] text-slate-200 outline-none cursor-pointer w-full border-none pr-1 font-bold"
               >
-                {voices.flatMap(v => 
+                {voices.flatMap(v =>
                   VOICE_STYLES.map(style => {
                     const cleanName = v.name.replace(/Google/i, '').replace(/Microsoft/i, '').replace(/Apple/i, '').trim();
                     return (
