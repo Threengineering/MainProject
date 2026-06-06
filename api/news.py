@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 import urllib.parse
-import requests
+import httpx
 import feedparser
 
 router = APIRouter()
@@ -10,9 +10,10 @@ async def get_news(keyword: str, limit: int = 5):
     try:
         encoded_keyword = urllib.parse.quote(keyword)
         rss_url = f"https://news.google.com/rss/search?q={encoded_keyword}&hl=ko&gl=KR&ceid=KR:ko"
-        
+
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        response = requests.get(rss_url, headers=headers, timeout=5)
+        async with httpx.AsyncClient() as client:
+            response = await client.get(rss_url, headers=headers, timeout=5)
         feed = feedparser.parse(response.content)
         
         news_items = []

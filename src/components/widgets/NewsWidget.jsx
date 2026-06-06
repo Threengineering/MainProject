@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { KeywordTag } from './Icons';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
 const getTimeAgo = (dateString) => {
   const newsDate = new Date(dateString);
   const now = new Date();
@@ -29,7 +31,7 @@ export default function NewsWidget({ data, newsLimit, onLimitChange, onRemoveKey
       for (const keyword of list) {
         try {
           // props로 받은 newsLimit 사용
-          const res = await fetch(`http://localhost:8000/api/news/${encodeURIComponent(keyword)}?limit=${newsLimit}`);
+          const res = await fetch(`${API_BASE}/api/news/${encodeURIComponent(keyword)}?limit=${newsLimit}`);
           const json = await res.json();
           if (!json.error) {
             results[keyword] = json.news || [];

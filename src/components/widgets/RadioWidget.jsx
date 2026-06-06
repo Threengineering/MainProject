@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
 // --- 오디오 스펙트럼 파형 애니메이션 ---
 const WaveformBars = ({ isPlaying }) => {
   const barCount = 28;
@@ -138,7 +140,7 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
         const newsSummaries = [];
         for (const keyword of newsKeywords) {
           try {
-            const res = await fetch(`http://localhost:8000/api/news/${encodeURIComponent(keyword)}?limit=2`);
+            const res = await fetch(`${API_BASE}/api/news/${encodeURIComponent(keyword)}?limit=2`);
             const data = await res.json();
             if (data.news && data.news.length > 0) {
               const titles = data.news.map((n) => n.title).join(', ');
@@ -156,7 +158,7 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
         const stockResults = [];
         for (const ticker of stockTickers) {
           try {
-            const res = await fetch(`http://localhost:8000/api/stock/${ticker}`);
+            const res = await fetch(`${API_BASE}/api/stock/${ticker}`);
             const data = await res.json();
             if (!data.error) {
               const dir = data.change >= 0 ? '상승' : '하락';
@@ -185,7 +187,7 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
         todo: todoText,
       };
 
-      const res = await fetch('http://localhost:8000/api/briefing/generate', {
+      const res = await fetch(`${API_BASE}/api/briefing/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

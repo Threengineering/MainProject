@@ -1,14 +1,11 @@
 from fastapi import APIRouter
 import os
-import requests
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
 
 router = APIRouter()
-print("="*50)
-print(f"내 API 키 확인: {os.getenv('OPENWEATHER_API_KEY')}")
-print("="*50)
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
 @router.get("/{location}")  
@@ -25,7 +22,8 @@ async def get_weather(location: str):
             "lang": "kr"
         }
         
-        response = requests.get(url, params=params, timeout=10)
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params, timeout=10)
         data = response.json()
         
         if response.status_code != 200:

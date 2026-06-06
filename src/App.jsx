@@ -17,6 +17,8 @@ const WIDGET_CONFIG = [
   { id: 'Radio', label: 'Radio' },
 ];
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
 const InputModal = ({ type, onClose, onConfirm }) => {
   const [value, setValue] = useState('');
   const placeholderText = {
@@ -72,10 +74,13 @@ export default function App() {
   };
   // ── 위젯 순서(위치) DB 저장 함수 ──
   const saveWidgetLayout = async (newLayout) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = session.user;
     const updatedInterests = { ...widgetData, ActiveWidgets: newLayout };
     await supabase.from('profiles').update({ interests: updatedInterests }).eq('id', user.id);
   };
+
+  const stockTickerKey = (widgetData.Stock ?? []).join(',');
+  const weatherLocationKey = (widgetData.Weather ?? []).join(',');
 
   // ── 주식 데이터 페칭 ──
   useEffect(() => {
@@ -85,7 +90,7 @@ export default function App() {
       const results = {};
       for (const ticker of tickers) {
         try {
-          const response = await fetch(`http://localhost:8000/api/stock/${ticker}`);
+          const response = await fetch(`${API_BASE}/api/stock/${ticker}`);
           const data = await response.json();
           if (!data.error) results[ticker] = data;
         } catch (err) { console.error(`${ticker} 연결 실패:`, err); }
@@ -96,7 +101,7 @@ export default function App() {
     fetchPrices();
     const timer = setInterval(fetchPrices, 60000);
     return () => clearInterval(timer);
-  }, [JSON.stringify(widgetData.Stock)]);
+  }, [stockTickerKey]);
 
   // ── 날씨 데이터 페칭 ──
   useEffect(() => {
@@ -106,7 +111,7 @@ export default function App() {
       const results = {};
       for (const location of locations) {
         try {
-          const response = await fetch(`http://localhost:8000/api/weather/${encodeURIComponent(location)}`);
+          const response = await fetch(`${API_BASE}/api/weather/${encodeURIComponent(location)}`);
           const data = await response.json();
           if (!data.error) results[location] = data;
         } catch (err) { console.error(`${location} 실패:`, err); }
@@ -117,7 +122,7 @@ export default function App() {
     fetchWeather();
     const timer = setInterval(fetchWeather, 600000);
     return () => clearInterval(timer);
-  }, [JSON.stringify(widgetData.Weather)]);
+  }, [weatherLocationKey]);
 
   // ── 사용자 프로필 로드 (위치 로드 포함) ──
   useEffect(() => {
@@ -174,7 +179,7 @@ export default function App() {
   const confirmWidget = async (inputValue) => {
     if (!inputValue.trim()) return;
     const type = modalOpen;
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = session.user;
     const currentKeywords = Array.isArray(widgetData[type]) ? widgetData[type] : [];
     const updatedKeywords = [...new Set([...currentKeywords, inputValue.trim()])];
 
@@ -197,7 +202,7 @@ export default function App() {
   };
 
   const deleteIndividualKeyword = async (type, keywordToDelete) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = session.user;
     const updatedKeywords = widgetData[type].filter(k => k !== keywordToDelete);
 
     let nextLayout = activeWidgets;
@@ -218,7 +223,7 @@ export default function App() {
     }
   };
   const handleNewsLimitChange = async (newLimit) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = session.user;
 
     // interests 객체에 NewsLimit 키 추가/업데이트
     const updatedInterests = { ...widgetData, NewsLimit: newLimit };
