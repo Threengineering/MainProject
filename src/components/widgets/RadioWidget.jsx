@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
+// --- 오디오 스타일 옵션 (속도 및 음고 조합) ---
+const VOICE_STYLES = [
+  { id: 'default', label: '기본 톤', rate: 0.95, pitch: 1.05 },
+  { id: 'calm', label: '차분한 톤', rate: 0.82, pitch: 0.95 },
+  { id: 'cheerful', label: '경쾌한 톤', rate: 1.12, pitch: 1.15 },
+  { id: 'deep', label: '중후한 톤', rate: 0.90, pitch: 0.80 }
+];
+
 // --- 오디오 스펙트럼 파형 애니메이션 ---
 const WaveformBars = ({ isPlaying }) => {
   const barCount = 28;
@@ -111,6 +119,39 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const utteranceRef = useRef(null);
   const sentencesRef = useRef([]);
+
+  const [voices, setVoices] = useState([]);
+  const [selectedVoiceKey, setSelectedVoiceKey] = useState('');
+
+  useEffect(() => {
+    const updateVoices = () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        const allVoices = window.speechSynthesis.getVoices();
+        const koVoices = allVoices.filter(v => v.lang.startsWith('ko') || v.lang === 'ko-KR');
+        setVoices(koVoices);
+        if (koVoices.length > 0) {
+          setSelectedVoiceKey(prev => {
+            if (prev) {
+              const [prevName, prevStyle] = prev.split('__');
+              if (koVoices.some(v => v.name === prevName) && VOICE_STYLES.some(s => s.id === prevStyle)) {
+                return prev;
+              }
+            }
+            return `${koVoices[0].name}__default`;
+          });
+        }
+      }
+    };
+    updateVoices();
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = updateVoices;
+    }
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
 
   // ── 각 백엔드 API에서 직접 데이터 수집 후 Gemini 요청 ──
   const fetchScript = useCallback(async () => {
@@ -231,13 +272,22 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
       }
       const utter = new SpeechSynthesisUtterance(sentences[idx].trim());
       utter.lang = 'ko-KR';
-      utter.rate = 0.95;
-      utter.pitch = 1.05;
 
-      // 한국어 음성 우선 선택
-      const voices = window.speechSynthesis.getVoices();
-      const koVoice = voices.find((v) => v.lang === 'ko-KR');
-      if (koVoice) utter.voice = koVoice;
+      // 선택한 음성 및 스타일 적용
+      const voicesList = window.speechSynthesis.getVoices();
+      const [voiceName, styleId] = selectedVoiceKey.split('__');
+      
+      const selectedVoice = voicesList.find((v) => v.name === voiceName);
+      if (selectedVoice) {
+        utter.voice = selectedVoice;
+      } else {
+        const koVoice = voicesList.find((v) => v.lang === 'ko-KR');
+        if (koVoice) utter.voice = koVoice;
+      }
+
+      const selectedStyle = VOICE_STYLES.find((s) => s.id === styleId) || VOICE_STYLES[0];
+      utter.rate = selectedStyle.rate;
+      utter.pitch = selectedStyle.pitch;
 
       utter.onstart = () => setHighlightIndex(idx);
       utter.onend = () => {
@@ -313,7 +363,7 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-2">
           <h2
             className="text-xl font-black tracking-tight leading-none"
             style={{ color: '#e2e8f0' }}
@@ -322,13 +372,43 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
           </h2>
           <RefreshButton onClick={fetchScript} loading={loading} />
         </div>
-        <p className="text-[10px] mt-1" style={{ color: '#6366f1' }}>
-          {new Date().toLocaleDateString('ko-KR', {
-            month: 'long',
-            day: 'numeric',
-            weekday: 'short',
-          })}
-        </p>
+
+        <div className="flex items-center justify-between gap-3 mt-1.5">
+          <p className="text-[10px]" style={{ color: '#6366f1' }}>
+            {new Date().toLocaleDateString('ko-KR', {
+              month: 'long',
+              day: 'numeric',
+              weekday: 'short',
+            })}
+          </p>
+
+          {voices.length > 0 && (
+            <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1 border border-white/5 max-w-[150px] shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-indigo-400 shrink-0"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+              <select
+                value={selectedVoiceKey}
+                onChange={(e) => {
+                  setSelectedVoiceKey(e.target.value);
+                  if (isPlaying || status === 'playing' || status === 'paused') {
+                    stopSpeech();
+                  }
+                }}
+                className="bg-transparent text-[10px] text-slate-200 outline-none cursor-pointer w-full border-none pr-1 font-bold"
+              >
+                {voices.flatMap(v => 
+                  VOICE_STYLES.map(style => {
+                    const cleanName = v.name.replace(/Google/i, '').replace(/Microsoft/i, '').replace(/Apple/i, '').trim();
+                    return (
+                      <option key={`${v.name}__${style.id}`} value={`${v.name}__${style.id}`} className="bg-slate-900 text-slate-200">
+                        {`${cleanName} (${style.label})`}
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
 
