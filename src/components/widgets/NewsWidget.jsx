@@ -32,8 +32,8 @@ export default function NewsWidget({ data, newsLimit, onLimitChange, onRemoveKey
         try {
           // props로 받은 newsLimit 사용
           const res = await fetch(`${API_BASE}/api/news/${encodeURIComponent(keyword)}?limit=${newsLimit}`);
-          const json = await res.json();
-          if (!json.error) {
+          if (res.ok) {
+            const json = await res.json();
             results[keyword] = json.news || [];
           }
         } catch (error) {

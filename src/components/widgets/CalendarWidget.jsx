@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -14,7 +16,7 @@ export default function CalendarWidget({ providerToken }) {
       try {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
-        const res = await fetch(`http://localhost:8000/api/holidays?year=${year}&month=${month}`);
+        const res = await fetch(`${API_BASE}/api/holidays?year=${year}&month=${month}`);
         const data = await res.json();
         if (data.holidays) {
           const holidayMap = {};

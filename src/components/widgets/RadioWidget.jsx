@@ -141,10 +141,11 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
         for (const keyword of newsKeywords) {
           try {
             const res = await fetch(`${API_BASE}/api/news/${encodeURIComponent(keyword)}?limit=2`);
-            const data = await res.json();
-            if (data.news && data.news.length > 0) {
-              const titles = data.news.map((n) => n.title).join(', ');
-              newsSummaries.push(`[${keyword}] ${titles}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.news?.length > 0) {
+                newsSummaries.push(`[${keyword}] ${data.news.map(n => n.title).join(', ')}`);
+              }
             }
           } catch {}
         }
@@ -159,8 +160,8 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
         for (const ticker of stockTickers) {
           try {
             const res = await fetch(`${API_BASE}/api/stock/${ticker}`);
-            const data = await res.json();
-            if (!data.error) {
+            if (res.ok) {
+              const data = await res.json();
               const dir = data.change >= 0 ? '상승' : '하락';
               stockResults.push(`${ticker} ${data.price}달러, 전일 대비 ${dir} ${Math.abs(data.change)}퍼센트`);
             }
@@ -192,6 +193,7 @@ export default function RadioWidget({ widgetData = {}, weatherData = {} }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (!res.ok) throw new Error(`briefing 생성 실패: ${res.status}`);
       const data = await res.json();
       const text = data.script || '대본을 가져올 수 없습니다.';
       setScript(text);

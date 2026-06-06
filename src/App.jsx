@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
+import { useAuth } from './hooks/useAuth';
+import { useProfile } from './hooks/useProfile';
+import { useStockPrices } from './hooks/useStockPrices';
+import { useWeatherData } from './hooks/useWeatherData';
 import WeatherWidget from './components/widgets/WeatherWidget';
 import NewsWidget from './components/widgets/NewsWidget';
 import TodoWidget from './components/widgets/TodoWidget';
 import StockWidget from './components/widgets/StockWidget';
 import CalendarWidget from './components/widgets/CalendarWidget';
 import RadioWidget from './components/widgets/RadioWidget';
+import Login from './components/Login';
 import { SettingsIcon, XIcon } from './components/widgets/Icons';
 
 const WIDGET_CONFIG = [
@@ -17,15 +22,21 @@ const WIDGET_CONFIG = [
   { id: 'Radio', label: 'Radio' },
 ];
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const getGridClass = (count) => {
+  if (count <= 1) return 'grid-cols-1 grid-rows-1';
+  if (count === 2) return 'grid-cols-2 grid-rows-1';
+  if (count <= 4) return 'grid-cols-2 grid-rows-2';
+  if (count <= 6) return 'grid-cols-3 grid-rows-2';
+  return 'grid-cols-3 grid-rows-3';
+};
 
 const InputModal = ({ type, onClose, onConfirm }) => {
   const [value, setValue] = useState('');
   const placeholderText = {
-    Weather: "지역 추가 (예: Chuncheon)",
-    News: "관심 뉴스 키워드 추가",
-    Stock: "관심 종목 추가",
-    Todo: "목표 추가"
+    Weather: '지역 추가 (예: Chuncheon)',
+    News: '관심 뉴스 키워드 추가',
+    Stock: '관심 종목 추가',
+    Todo: '목표 추가',
   };
 
   return (
@@ -51,144 +62,46 @@ const InputModal = ({ type, onClose, onConfirm }) => {
 };
 
 export default function App() {
-  const [session, setSession] = useState(null);
-  const [activeWidgets, setActiveWidgets] = useState([]);
-  const [widgetData, setWidgetData] = useState({});
+  const { session } = useAuth();
+  const { widgetData, setWidgetData, activeWidgets, setActiveWidgets, newsLimit, setNewsLimit, persistInterests } = useProfile(session);
+  const { stockPrices, lastUpdated } = useStockPrices(widgetData.Stock ?? []);
+  const { weatherData, lastUpdated: weatherUpdated } = useWeatherData(widgetData.Weather ?? []);
   const [modalOpen, setModalOpen] = useState(null);
 
-  const [newsLimit, setNewsLimit] = useState(5);
-  const [stockPrices, setStockPrices] = useState({});
-  const [lastUpdated, setLastUpdated] = useState('');
-  const [weatherData, setWeatherData] = useState({});
-  const [weatherUpdated, setWeatherUpdated] = useState('');
+  if (!session) return <Login />;
 
   const toggleFullScreen = () => {
-    const dashboardElement = document.getElementById("dashboard-main");
+    const el = document.getElementById('dashboard-main');
     if (!document.fullscreenElement) {
-      dashboardElement.requestFullscreen().catch((err) => {
-        alert(`전체화면 전환 실패: ${err.message}`);
-      });
+      el.requestFullscreen().catch((err) => alert(`전체화면 전환 실패: ${err.message}`));
     } else {
-      if (document.exitFullscreen) document.exitFullscreen();
+      document.exitFullscreen?.();
     }
   };
-  // ── 위젯 순서(위치) DB 저장 함수 ──
-  const saveWidgetLayout = async (newLayout) => {
-    const user = session.user;
-    const updatedInterests = { ...widgetData, ActiveWidgets: newLayout };
-    await supabase.from('profiles').update({ interests: updatedInterests }).eq('id', user.id);
-  };
 
-  const stockTickerKey = (widgetData.Stock ?? []).join(',');
-  const weatherLocationKey = (widgetData.Weather ?? []).join(',');
+  const saveWidgetLayout = (newLayout) =>
+    persistInterests({ ...widgetData, ActiveWidgets: newLayout });
 
-  // ── 주식 데이터 페칭 ──
-  useEffect(() => {
-    const fetchPrices = async () => {
-      const tickers = widgetData.Stock;
-      if (!tickers || tickers.length === 0) { setStockPrices({}); return; }
-      const results = {};
-      for (const ticker of tickers) {
-        try {
-          const response = await fetch(`${API_BASE}/api/stock/${ticker}`);
-          const data = await response.json();
-          if (!data.error) results[ticker] = data;
-        } catch (err) { console.error(`${ticker} 연결 실패:`, err); }
-      }
-      setStockPrices(results);
-      setLastUpdated(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
-    };
-    fetchPrices();
-    const timer = setInterval(fetchPrices, 60000);
-    return () => clearInterval(timer);
-  }, [stockTickerKey]);
-
-  // ── 날씨 데이터 페칭 ──
-  useEffect(() => {
-    const fetchWeather = async () => {
-      const locations = widgetData.Weather;
-      if (!locations || locations.length === 0) { setWeatherData({}); return; }
-      const results = {};
-      for (const location of locations) {
-        try {
-          const response = await fetch(`${API_BASE}/api/weather/${encodeURIComponent(location)}`);
-          const data = await response.json();
-          if (!data.error) results[location] = data;
-        } catch (err) { console.error(`${location} 실패:`, err); }
-      }
-      setWeatherData(results);
-      setWeatherUpdated(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
-    };
-    fetchWeather();
-    const timer = setInterval(fetchWeather, 600000);
-    return () => clearInterval(timer);
-  }, [weatherLocationKey]);
-
-  // ── 사용자 프로필 로드 (위치 로드 포함) ──
-  useEffect(() => {
-    const fetchProfile = async (user) => {
-      const { data, error } = await supabase.from('profiles').select('interests').eq('id', user.id);
-      if (error) return;
-      if (data?.[0]?.interests) {
-        const interests = data[0].interests;
-
-        if (interests.NewsLimit) setNewsLimit(interests.NewsLimit);
-
-        if (interests.Todo) {
-          interests.Todo = interests.Todo.map((item, i) =>
-            typeof item === 'string' ? { id: `legacy_${i}`, text: item, done: false } : item
-          );
-        }
-        setWidgetData(interests);
-
-        // 💡 1. 저장된 위치(ActiveWidgets)가 있으면 그걸 먼저 쓰고, 없으면 기본 로직
-        if (Array.isArray(interests.ActiveWidgets)) {
-          setActiveWidgets(interests.ActiveWidgets);
-        } else {
-          const activeKeys = Object.keys(interests).filter(key =>
-            Array.isArray(interests[key]) && interests[key].length > 0 && key !== 'ActiveWidgets'
-          );
-          setActiveWidgets(activeKeys);
-        }
-      }
-    };
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchProfile(session.user);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) fetchProfile(session.user);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // ── 위젯 추가 시 위치 저장 ──
   const handleAddClick = (name) => {
-    if (!activeWidgets.includes(name)) {
-      const nextWidgets = [...activeWidgets, name];
-      if (name === 'Todo' || name === 'Calendar' || name === 'Radio' || widgetData[name]?.length > 0) {
-        setActiveWidgets(nextWidgets);
-        saveWidgetLayout(nextWidgets); // 💡 저장
-      } else {
-        setModalOpen(name);
-      }
+    if (activeWidgets.includes(name)) return;
+    const nextWidgets = [...activeWidgets, name];
+    if (name === 'Todo' || name === 'Calendar' || name === 'Radio' || widgetData[name]?.length > 0) {
+      setActiveWidgets(nextWidgets);
+      saveWidgetLayout(nextWidgets);
+    } else {
+      setModalOpen(name);
     }
   };
 
   const confirmWidget = async (inputValue) => {
     if (!inputValue.trim()) return;
     const type = modalOpen;
-    const user = session.user;
     const currentKeywords = Array.isArray(widgetData[type]) ? widgetData[type] : [];
     const updatedKeywords = [...new Set([...currentKeywords, inputValue.trim()])];
-
-    // 위치 정보까지 포함해서 업데이트
     const nextLayout = activeWidgets.includes(type) ? activeWidgets : [...activeWidgets, type];
     const updatedInterests = { ...widgetData, [type]: updatedKeywords, ActiveWidgets: nextLayout };
-
-    const { error } = await supabase.from('profiles').upsert({ id: user.id, interests: updatedInterests });
-    if (!error) {
+    const ok = await persistInterests(updatedInterests);
+    if (ok) {
       setWidgetData(updatedInterests);
       setActiveWidgets(nextLayout);
       setModalOpen(null);
@@ -202,56 +115,28 @@ export default function App() {
   };
 
   const deleteIndividualKeyword = async (type, keywordToDelete) => {
-    const user = session.user;
     const updatedKeywords = widgetData[type].filter(k => k !== keywordToDelete);
-
-    let nextLayout = activeWidgets;
-    if (updatedKeywords.length === 0) {
-      nextLayout = activeWidgets.filter(w => w !== type);
-    }
-
+    const nextLayout = updatedKeywords.length === 0
+      ? activeWidgets.filter(w => w !== type)
+      : activeWidgets;
     const updatedInterests = { ...widgetData, [type]: updatedKeywords, ActiveWidgets: nextLayout };
-    const { error } = await supabase.from('profiles').update({ interests: updatedInterests }).eq('id', user.id);
-    if (!error) {
+    const ok = await persistInterests(updatedInterests);
+    if (ok) {
       setWidgetData(updatedInterests);
-      // 만약 키워드가 하나도 남지 않으면 화면에서 위젯을 내립니다.
-      if (updatedKeywords.length === 0) {
-        setActiveWidgets(activeWidgets.filter(w => w !== type));
-      }
+      if (updatedKeywords.length === 0) setActiveWidgets(nextLayout);
     } else {
-      alert("삭제 실패: " + error.message);
+      alert('삭제 실패');
     }
   };
+
   const handleNewsLimitChange = async (newLimit) => {
-    const user = session.user;
-
-    // interests 객체에 NewsLimit 키 추가/업데이트
     const updatedInterests = { ...widgetData, NewsLimit: newLimit };
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ interests: updatedInterests })
-      .eq('id', user.id);
-
-    if (!error) {
+    const ok = await persistInterests(updatedInterests);
+    if (ok) {
       setNewsLimit(newLimit);
       setWidgetData(updatedInterests);
-    } else {
-      console.error("NewsLimit 저장 실패:", error.message);
     }
   };
-
-  if (!session) return (
-    <div className="h-screen flex items-center justify-center bg-slate-50">
-      <button onClick={() => supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { scopes: 'https://www.googleapis.com/auth/calendar.readonly' }
-      })} className="px-8 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm font-bold flex items-center gap-3 hover:bg-slate-50 transition-all">
-        <img className="w-6 h-6" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" />
-        Google로 시작하기
-      </button>
-    </div>
-  );
 
   return (
     <div className="w-screen h-screen flex flex-col bg-slate-200 overflow-hidden font-sans">
@@ -265,10 +150,11 @@ export default function App() {
               key={widget.id}
               onClick={() => handleAddClick(widget.id)}
               disabled={activeWidgets.includes(widget.id)}
-              className={`text-[10px] px-3 py-1.5 rounded-full font-bold border transition-all ${activeWidgets.includes(widget.id)
-                ? 'bg-indigo-600 text-white border-indigo-600 opacity-50 cursor-default'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-500 hover:text-indigo-500'
-                }`}
+              className={`text-[10px] px-3 py-1.5 rounded-full font-bold border transition-all ${
+                activeWidgets.includes(widget.id)
+                  ? 'bg-indigo-600 text-white border-indigo-600 opacity-50 cursor-default'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-500 hover:text-indigo-500'
+              }`}
             >
               {widget.label} {activeWidgets.includes(widget.id) ? 'ON' : '+'}
             </button>
@@ -284,18 +170,16 @@ export default function App() {
 
         <div className="absolute right-10 top-6 flex flex-col items-end gap-1">
           <div className="flex items-center gap-2">
-            {session.user.user_metadata.avatar_url && <img src={session.user.user_metadata.avatar_url} className="w-6 h-6 rounded-full" alt="profile" />}
+            {session.user.user_metadata.avatar_url && (
+              <img src={session.user.user_metadata.avatar_url} className="w-6 h-6 rounded-full" alt="profile" />
+            )}
             <span className="text-[11px] font-bold text-slate-600">{session.user.user_metadata.full_name}</span>
           </div>
           <button onClick={() => supabase.auth.signOut()} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 uppercase transition-colors">Logout</button>
         </div>
       </nav>
 
-      <main id="dashboard-main" className={`flex-1 grid gap-[1px] w-full min-h-0 bg-slate-200 ${activeWidgets.length <= 1 ? "grid-cols-1 grid-rows-1" :
-          activeWidgets.length === 2 ? "grid-cols-2 grid-rows-1" :
-            activeWidgets.length <= 4 ? "grid-cols-2 grid-rows-2" :
-              activeWidgets.length <= 6 ? "grid-cols-3 grid-rows-2" : "grid-cols-3 grid-rows-3"
-        }`}>
+      <main id="dashboard-main" className={`flex-1 grid gap-[1px] w-full min-h-0 bg-slate-200 ${getGridClass(activeWidgets.length)}`}>
         {activeWidgets.length === 0 ? (
           <div className="relative bg-white flex items-center justify-center h-full w-full">
             <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
@@ -303,7 +187,7 @@ export default function App() {
             </div>
           </div>
         ) : (
-          activeWidgets.map((widgetName, index) => (
+          activeWidgets.map((widgetName) => (
             <div key={widgetName} className="relative bg-white flex items-center justify-center group overflow-hidden h-full w-full">
               <div className="w-full h-full">
                 <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -315,9 +199,7 @@ export default function App() {
                 {widgetName === 'Stock' && <StockWidget data={widgetData.Stock} stockPrices={stockPrices} lastUpdated={lastUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
                 {widgetName === 'Todo' && <TodoWidget data={widgetData.Todo} onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))} initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0} />}
                 {widgetName === 'Calendar' && <CalendarWidget providerToken={session?.provider_token} />}
-                {widgetName === 'Radio' && (
-                  <RadioWidget widgetData={widgetData} weatherData={weatherData} />
-                )}
+                {widgetName === 'Radio' && <RadioWidget widgetData={widgetData} weatherData={weatherData} />}
               </div>
             </div>
           ))

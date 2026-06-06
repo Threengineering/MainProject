@@ -1,14 +1,10 @@
 import os
 from typing import Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from dotenv import load_dotenv
 from google import genai
 
-load_dotenv()
-
 router = APIRouter()
-
 api_key = os.getenv("GEMINI_API_KEY")
 
 class BriefingRequest(BaseModel):
@@ -20,7 +16,7 @@ class BriefingRequest(BaseModel):
 @router.post("/generate")
 async def generate_briefing(req: BriefingRequest):
     if not api_key or api_key == "여기에_발급받은_API_키를_입력하세요":
-        return {"script": "Gemini API 키가 설정되지 않았습니다. .env 파일에 GEMINI_API_KEY를 입력해 주세요."}
+        raise HTTPException(status_code=500, detail="Gemini API 키가 설정되지 않았습니다. .env 파일에 GEMINI_API_KEY를 입력해 주세요.")
 
     prompt = f"""
 당신은 친절하고 활기찬 아침 라디오 DJ입니다.
@@ -39,10 +35,7 @@ async def generate_briefing(req: BriefingRequest):
 """
     try:
         client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
+        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
         return {"script": response.text}
     except Exception as e:
-        return {"script": f"대본 생성 중 오류가 발생했습니다: {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"대본 생성 중 오류가 발생했습니다: {str(e)}")

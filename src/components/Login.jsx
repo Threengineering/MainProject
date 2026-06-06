@@ -1,15 +1,11 @@
-import { supabase } from '../supabaseClient'; // 아까 만든 설정 파일 불러오기
+import { supabase } from '../supabaseClient';
 
 const Login = () => {
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+  const handleGoogleLogin = () => {
+    supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: window.location.origin, // 로그인 후 현재 주소로 리다이렉트
-      },
+      options: { scopes: 'https://www.googleapis.com/auth/calendar.readonly' },
     });
-
-    if (error) console.error('로그인 에러:', error.message);
   };
 
   return (
@@ -17,7 +13,6 @@ const Login = () => {
       <div className="p-8 bg-white rounded-2xl shadow-xl flex flex-col items-center">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">PROTO:MIRACLE</h1>
         <p className="text-gray-500 mb-8 text-sm">바쁜 현대인을 위한 대시보드</p>
-
         <button
           onClick={handleGoogleLogin}
           className="flex items-center justify-center gap-3 px-6 py-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-all shadow-sm font-medium text-gray-700"
