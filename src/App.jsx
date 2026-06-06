@@ -4,6 +4,8 @@ import WeatherWidget from './components/widgets/WeatherWidget';
 import NewsWidget from './components/widgets/NewsWidget';
 import TodoWidget from './components/widgets/TodoWidget';
 import StockWidget from './components/widgets/StockWidget';
+import CalendarWidget from './components/widgets/CalendarWidget';
+import RadioWidget from './components/widgets/RadioWidget';
 import { SettingsIcon, XIcon } from './components/widgets/Icons';
 
 const WIDGET_CONFIG = [
@@ -11,6 +13,8 @@ const WIDGET_CONFIG = [
   { id: 'Weather', label: 'Weather' },
   { id: 'Todo', label: 'Todo' },
   { id: 'Stock', label: 'Stock' },
+  { id: 'Calendar', label: 'Calendar' },
+  { id: 'Radio', label: 'Radio' },
 ];
 
 const InputModal = ({ type, onClose, onConfirm }) => {
@@ -55,6 +59,32 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState('');
   const [weatherData, setWeatherData] = useState({});
   const [weatherUpdated, setWeatherUpdated] = useState('');
+  const [kospiData, setKospiData] = useState(null);
+  const [exchangeData, setExchangeData] = useState(null);
+
+  // ── KOSPI 및 환율 데이터 페칭 ──
+  useEffect(() => {
+    const fetchTopBarData = async () => {
+      try {
+        const kospiRes = await fetch('http://localhost:8000/api/stock/%5EKS11');
+        const kospiJson = await kospiRes.json();
+        if (!kospiJson.error) setKospiData(kospiJson);
+      } catch (err) {
+        console.error('KOSPI fetch failed:', err);
+      }
+
+      try {
+        const exchangeRes = await fetch('http://localhost:8000/api/stock/USDKRW=X');
+        const exchangeJson = await exchangeRes.json();
+        if (!exchangeJson.error) setExchangeData(exchangeJson);
+      } catch (err) {
+        console.error('Exchange fetch failed:', err);
+      }
+    };
+    fetchTopBarData();
+    const timer = setInterval(fetchTopBarData, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const toggleFullScreen = () => {
     const dashboardElement = document.getElementById("dashboard-main");
@@ -156,9 +186,9 @@ export default function App() {
 
   // ── 위젯 추가 시 위치 저장 ──
   const handleAddClick = (name) => {
-    if (activeWidgets.length < 4 && !activeWidgets.includes(name)) {
+    if (!activeWidgets.includes(name)) {
       const nextWidgets = [...activeWidgets, name];
-      if (name === 'Todo' || widgetData[name]?.length > 0) {
+      if (name === 'Todo' || name === 'Calendar' || name === 'Radio' || widgetData[name]?.length > 0) {
         setActiveWidgets(nextWidgets);
         saveWidgetLayout(nextWidgets); // 💡 저장
       } else {
@@ -234,7 +264,10 @@ export default function App() {
 
   if (!session) return (
     <div className="h-screen flex items-center justify-center bg-slate-50">
-      <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })} className="px-8 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm font-bold flex items-center gap-3 hover:bg-slate-50 transition-all">
+      <button onClick={() => supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { scopes: 'https://www.googleapis.com/auth/calendar.readonly' }
+      })} className="px-8 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm font-bold flex items-center gap-3 hover:bg-slate-50 transition-all">
         <img className="w-6 h-6" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" />
         Google로 시작하기
       </button>
@@ -270,39 +303,81 @@ export default function App() {
           </button>
         </div>
 
-        <div className="absolute right-10 top-6 flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
-            {session.user.user_metadata.avatar_url && <img src={session.user.user_metadata.avatar_url} className="w-6 h-6 rounded-full" alt="profile" />}
-            <span className="text-[11px] font-bold text-slate-600">{session.user.user_metadata.full_name}</span>
+        <div className="absolute right-10 top-6 flex items-center gap-6">
+          <div className="flex items-center gap-4 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-[10px]">KOSPI</span>
+              {kospiData ? (
+                <>
+                  <span className={kospiData.change >= 0 ? "text-rose-500" : "text-blue-500"}>
+                    {kospiData.price?.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className={`text-[10px] flex items-center gap-0.5 ${kospiData.change >= 0 ? "text-rose-500" : "text-blue-500"}`}>
+                    {kospiData.change >= 0 ? '▲' : '▼'}{Math.abs(kospiData.change).toFixed(2)}%
+                  </span>
+                </>
+              ) : (
+                <span className="text-slate-300 text-[10px]">로딩중...</span>
+              )}
+            </div>
+            <div className="w-[1px] h-3 bg-slate-200"></div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-[10px]">USD/KRW</span>
+              {exchangeData ? (
+                <>
+                  <span className={exchangeData.change >= 0 ? "text-rose-500" : "text-blue-500"}>
+                    {exchangeData.price?.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className={`text-[10px] flex items-center gap-0.5 ${exchangeData.change >= 0 ? "text-rose-500" : "text-blue-500"}`}>
+                    {exchangeData.change >= 0 ? '▲' : '▼'}{Math.abs(exchangeData.change).toFixed(2)}%
+                  </span>
+                </>
+              ) : (
+                <span className="text-slate-300 text-[10px]">로딩중...</span>
+              )}
+            </div>
           </div>
-          <button onClick={() => supabase.auth.signOut()} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 uppercase transition-colors">Logout</button>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              {session.user.user_metadata.avatar_url && <img src={session.user.user_metadata.avatar_url} className="w-6 h-6 rounded-full" alt="profile" />}
+              <span className="text-[11px] font-bold text-slate-600">{session.user.user_metadata.full_name}</span>
+            </div>
+            <button onClick={() => supabase.auth.signOut()} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 uppercase transition-colors">Logout</button>
+          </div>
         </div>
       </nav>
 
-      <main id="dashboard-main" className="flex-1 grid grid-cols-2 grid-rows-2 gap-[1px] w-full min-h-0 bg-slate-200">
-        {[0, 1, 2, 3].map((index) => {
-          const widgetName = activeWidgets[index];
-          return (
-            <div key={index} className="relative bg-white flex items-center justify-center group overflow-hidden h-full w-full">
-              {widgetName ? (
-                <div className="w-full h-full">
-                  <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors"><SettingsIcon /></button>
-                    <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors"><XIcon /></button>
-                  </div>
-                  {widgetName === 'Weather' && <WeatherWidget data={widgetData.Weather} weatherData={weatherData} lastUpdated={weatherUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
-                  {widgetName === 'News' && <NewsWidget data={widgetData.News} newsLimit={newsLimit} onLimitChange={handleNewsLimitChange} onRemoveKeyword={deleteIndividualKeyword} />}
-                  {widgetName === 'Stock' && <StockWidget data={widgetData.Stock} stockPrices={stockPrices} lastUpdated={lastUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
-                  {widgetName === 'Todo' && <TodoWidget data={widgetData.Todo} onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))} initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0} />}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
-                  <div className="text-8xl font-black">0{index + 1}</div>
-                </div>
-              )}
+      <main id="dashboard-main" className={`flex-1 grid gap-[1px] w-full min-h-0 bg-slate-200 ${activeWidgets.length <= 1 ? "grid-cols-1 grid-rows-1" :
+          activeWidgets.length === 2 ? "grid-cols-2 grid-rows-1" :
+            activeWidgets.length <= 4 ? "grid-cols-2 grid-rows-2" :
+              activeWidgets.length <= 6 ? "grid-cols-3 grid-rows-2" : "grid-cols-3 grid-rows-3"
+        }`}>
+        {activeWidgets.length === 0 ? (
+          <div className="relative bg-white flex items-center justify-center h-full w-full">
+            <div className="flex flex-col items-center text-slate-100 select-none pointer-events-none">
+              <div className="text-8xl font-black">01</div>
             </div>
-          );
-        })}
+          </div>
+        ) : (
+          activeWidgets.map((widgetName, index) => (
+            <div key={widgetName} className="relative bg-white flex items-center justify-center group overflow-hidden h-full w-full">
+              <div className="w-full h-full">
+                <div className="absolute top-6 right-6 z-40 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => setModalOpen(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-indigo-500 hover:text-white transition-colors"><SettingsIcon /></button>
+                  <button onClick={() => removeWidget(widgetName)} className="bg-slate-100 p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors"><XIcon /></button>
+                </div>
+                {widgetName === 'Weather' && <WeatherWidget data={widgetData.Weather} weatherData={weatherData} lastUpdated={weatherUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
+                {widgetName === 'News' && <NewsWidget data={widgetData.News} newsLimit={newsLimit} onLimitChange={handleNewsLimitChange} onRemoveKeyword={deleteIndividualKeyword} />}
+                {widgetName === 'Stock' && <StockWidget data={widgetData.Stock} stockPrices={stockPrices} lastUpdated={lastUpdated} onRemoveKeyword={deleteIndividualKeyword} />}
+                {widgetName === 'Todo' && <TodoWidget data={widgetData.Todo} onDataChange={(type, updated) => setWidgetData(prev => ({ ...prev, [type]: updated }))} initialShowModal={!widgetData.Todo || widgetData.Todo.length === 0} />}
+                {widgetName === 'Calendar' && <CalendarWidget providerToken={session?.provider_token} />}
+                {widgetName === 'Radio' && (
+                  <RadioWidget widgetData={widgetData} weatherData={weatherData} />
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </main>
     </div>
   );
