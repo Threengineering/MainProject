@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useAuth } from './hooks/useAuth';
 import { useProfile } from './hooks/useProfile';
@@ -67,6 +67,31 @@ export default function App() {
   const { stockPrices, lastUpdated } = useStockPrices(widgetData.Stock ?? []);
   const { weatherData, lastUpdated: weatherUpdated } = useWeatherData(widgetData.Weather ?? []);
   const [modalOpen, setModalOpen] = useState(null);
+  const [kospiData, setKospiData] = useState(null);
+  const [exchangeData, setExchangeData] = useState(null);
+
+  useEffect(() => {
+    const fetchTopBarData = async () => {
+      try {
+        const kospiRes = await fetch('http://localhost:8000/api/stock/%5EKS11');
+        const kospiJson = await kospiRes.json();
+        if (!kospiJson.error) setKospiData(kospiJson);
+      } catch (err) {
+        console.error('KOSPI fetch failed:', err);
+      }
+
+      try {
+        const exchangeRes = await fetch('http://localhost:8000/api/stock/USDKRW=X');
+        const exchangeJson = await exchangeRes.json();
+        if (!exchangeJson.error) setExchangeData(exchangeJson);
+      } catch (err) {
+        console.error('Exchange fetch failed:', err);
+      }
+    };
+    fetchTopBarData();
+    const timer = setInterval(fetchTopBarData, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   if (!session) return <Login />;
 
@@ -150,11 +175,10 @@ export default function App() {
               key={widget.id}
               onClick={() => handleAddClick(widget.id)}
               disabled={activeWidgets.includes(widget.id)}
-              className={`text-[10px] px-3 py-1.5 rounded-full font-bold border transition-all ${
-                activeWidgets.includes(widget.id)
+              className={`text-[10px] px-3 py-1.5 rounded-full font-bold border transition-all ${activeWidgets.includes(widget.id)
                   ? 'bg-indigo-600 text-white border-indigo-600 opacity-50 cursor-default'
                   : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-500 hover:text-indigo-500'
-              }`}
+                }`}
             >
               {widget.label} {activeWidgets.includes(widget.id) ? 'ON' : '+'}
             </button>
@@ -168,14 +192,47 @@ export default function App() {
           </button>
         </div>
 
-        <div className="absolute right-10 top-6 flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
-            {session.user.user_metadata.avatar_url && (
-              <img src={session.user.user_metadata.avatar_url} className="w-6 h-6 rounded-full" alt="profile" />
-            )}
-            <span className="text-[11px] font-bold text-slate-600">{session.user.user_metadata.full_name}</span>
+        <div className="absolute right-10 top-6 flex items-center gap-6">
+          <div className="flex items-center gap-4 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-[10px]">KOSPI</span>
+              {kospiData ? (
+                <>
+                  <span className={kospiData.change >= 0 ? "text-rose-500" : "text-blue-500"}>
+                    {kospiData.price?.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className={`text-[10px] flex items-center gap-0.5 ${kospiData.change >= 0 ? "text-rose-500" : "text-blue-500"}`}>
+                    {kospiData.change >= 0 ? '▲' : '▼'}{Math.abs(kospiData.change).toFixed(2)}%
+                  </span>
+                </>
+              ) : (
+                <span className="text-slate-300 text-[10px]">로딩중...</span>
+              )}
+            </div>
+            <div className="w-[1px] h-3 bg-slate-200"></div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-[10px]">USD/KRW</span>
+              {exchangeData ? (
+                <>
+                  <span className={exchangeData.change >= 0 ? "text-rose-500" : "text-blue-500"}>
+                    {exchangeData.price?.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className={`text-[10px] flex items-center gap-0.5 ${exchangeData.change >= 0 ? "text-rose-500" : "text-blue-500"}`}>
+                    {exchangeData.change >= 0 ? '▲' : '▼'}{Math.abs(exchangeData.change).toFixed(2)}%
+                  </span>
+                </>
+              ) : (
+                <span className="text-slate-300 text-[10px]">로딩중...</span>
+              )}
+            </div>
           </div>
-          <button onClick={() => supabase.auth.signOut()} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 uppercase transition-colors">Logout</button>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              {session.user.user_metadata.avatar_url && <img src={session.user.user_metadata.avatar_url} className="w-6 h-6 rounded-full" alt="profile" />}
+              <span className="text-[11px] font-bold text-slate-600">{session.user.user_metadata.full_name}</span>
+            </div>
+            <button onClick={() => supabase.auth.signOut()} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 uppercase transition-colors">Logout</button>
+          </div>
         </div>
       </nav>
 
